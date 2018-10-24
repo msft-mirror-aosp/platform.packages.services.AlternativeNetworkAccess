@@ -254,7 +254,7 @@ public class ANSProfileSelector {
 
     private int getSubId(String mcc, String mnc) {
         List<SubscriptionInfo> subscriptionInfos =
-                mSubscriptionManager.getOpportunisticSubscriptions(1);
+                mSubscriptionManager.getOpportunisticSubscriptions();
         for (SubscriptionInfo subscriptionInfo : subscriptionInfos) {
             if (TextUtils.equals(subscriptionInfo.getMccString(), mcc)
                     && TextUtils.equals(subscriptionInfo.getMncString(), mnc)) {
@@ -299,7 +299,7 @@ public class ANSProfileSelector {
 
     private void checkProfileUpdate() {
         List<SubscriptionInfo> subscriptionInfos =
-                mSubscriptionManager.getOpportunisticSubscriptions(1);
+                mSubscriptionManager.getOpportunisticSubscriptions();
         if (subscriptionInfos == null) {
             logDebug("received null subscription infos");
             return;
