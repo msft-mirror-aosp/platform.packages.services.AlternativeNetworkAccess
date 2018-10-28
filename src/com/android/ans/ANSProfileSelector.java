@@ -254,7 +254,7 @@ public class ANSProfileSelector {
 
     private int getSubId(String mcc, String mnc) {
         List<SubscriptionInfo> subscriptionInfos =
-                mSubscriptionManager.getOpportunisticSubscriptions(1);
+                mSubscriptionManager.getOpportunisticSubscriptions();
         for (SubscriptionInfo subscriptionInfo : subscriptionInfos) {
             if (TextUtils.equals(subscriptionInfo.getMccString(), mcc)
                     && TextUtils.equals(subscriptionInfo.getMncString(), mnc)) {
@@ -278,7 +278,7 @@ public class ANSProfileSelector {
     }
 
     private void switchPreferredData(int subId) {
-        mSubscriptionManager.setPreferredData(mSubscriptionManager.getSlotIndex(subId));
+        mSubscriptionManager.setPreferredData(subId);
         onDataSwitchComplete(subId);
     }
 
@@ -299,7 +299,7 @@ public class ANSProfileSelector {
 
     private void checkProfileUpdate() {
         List<SubscriptionInfo> subscriptionInfos =
-                mSubscriptionManager.getOpportunisticSubscriptions(1);
+                mSubscriptionManager.getOpportunisticSubscriptions();
         if (subscriptionInfos == null) {
             logDebug("received null subscription infos");
             return;
@@ -332,8 +332,7 @@ public class ANSProfileSelector {
      * select primary profile for data
      */
     public void selectPrimaryProfileForData() {
-        mSubscriptionManager.setPreferredData(mSubscriptionManager.getSlotIndex(
-                mSubscriptionManager.getDefaultSubscriptionId()));
+        mSubscriptionManager.setPreferredData(SubscriptionManager.INVALID_SUBSCRIPTION_ID);
     }
 
     /**

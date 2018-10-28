@@ -129,7 +129,7 @@ public class ANSProfileSelectorTest extends ANSBaseTest {
         }).start();
 
         doReturn(true).when(mANSNetworkScanCtlr).startFastNetworkScan(anyObject());
-        doReturn(null).when(mSubscriptionManager).getOpportunisticSubscriptions(anyInt());
+        doReturn(null).when(mSubscriptionManager).getOpportunisticSubscriptions();
 
         // Wait till initialization is complete.
         waitUntilReady();
@@ -176,7 +176,7 @@ public class ANSProfileSelectorTest extends ANSBaseTest {
             }
         }).start();
 
-        doReturn(subscriptionInfoList).when(mSubscriptionManager).getOpportunisticSubscriptions(anyInt());
+        doReturn(subscriptionInfoList).when(mSubscriptionManager).getOpportunisticSubscriptions();
 
         // Wait till initialization is complete.
         waitUntilReady();
