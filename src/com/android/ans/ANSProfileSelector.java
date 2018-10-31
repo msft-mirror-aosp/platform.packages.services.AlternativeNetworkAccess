@@ -51,7 +51,7 @@ public class ANSProfileSelector {
     private final Object mLock = new Object();
 
     private static final int INVALID_SEQUENCE_ID = -1;
-    private static final int START_SEQUENCE_ID = 0;
+    private static final int START_SEQUENCE_ID = 1;
 
     /* message to indicate profile update */
     private static final int MSG_PROFILE_UPDATE = 1;
@@ -71,6 +71,8 @@ public class ANSProfileSelector {
 
     @VisibleForTesting
     protected SubscriptionManager mSubscriptionManager;
+    @VisibleForTesting
+    protected List<SubscriptionInfo> mOppSubscriptionInfos;
     private ANSProfileSelectionCallback mProfileSelectionCallback;
     private int mSequenceId;
 
@@ -93,6 +95,9 @@ public class ANSProfileSelector {
         public void handleMessage(Message msg) {
             switch (msg.what) {
                 case MSG_PROFILE_UPDATE:
+                    updateOpportunisticSubscriptions();
+                    checkProfileUpdate();
+                    break;
                 case MSG_START_PROFILE_SELECTION:
                     logDebug("Msg received for profile update");
                     checkProfileUpdate();
@@ -227,8 +232,7 @@ public class ANSProfileSelector {
     }
 
     private int getSubId(String mcc, String mnc) {
-        List<SubscriptionInfo> subscriptionInfos =
-                mSubscriptionManager.getOpportunisticSubscriptions();
+        List<SubscriptionInfo> subscriptionInfos = mOppSubscriptionInfos;
         for (SubscriptionInfo subscriptionInfo : subscriptionInfos) {
             if (TextUtils.equals(subscriptionInfo.getMccString(), mcc)
                     && TextUtils.equals(subscriptionInfo.getMncString(), mnc)) {
@@ -266,10 +270,8 @@ public class ANSProfileSelector {
     }
 
     private void checkProfileUpdate() {
-        List<SubscriptionInfo> subscriptionInfos =
-                mSubscriptionManager.getOpportunisticSubscriptions();
+        List<SubscriptionInfo> subscriptionInfos = mOppSubscriptionInfos;
         if (subscriptionInfos == null) {
-            logDebug("received null subscription infos");
             return;
         }
 
@@ -282,6 +284,30 @@ public class ANSProfileSelector {
             /* check if no profile */
             mNetworkScanCtlr.stopNetworkScan();
         }
+    }
+
+    private boolean isActiveSub(int subId) {
+        List<SubscriptionInfo> subscriptionInfos =
+                mSubscriptionManager.getActiveSubscriptionInfoList();
+        for (SubscriptionInfo subscriptionInfo : subscriptionInfos) {
+            if (subscriptionInfo.getSubscriptionId() == subId) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public boolean isOpprotunisticSub(int subId) {
+        if ((mOppSubscriptionInfos == null) || (mOppSubscriptionInfos.size() == 0)) {
+            return false;
+        }
+        for (SubscriptionInfo subscriptionInfo : mOppSubscriptionInfos) {
+            if (subscriptionInfo.getSubscriptionId() == subId) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -303,12 +329,40 @@ public class ANSProfileSelector {
     }
 
     /**
+     * select opportunistic profile for data if passing a valid subId.
+     * @param subId : opportunistic subId or SubscriptionManager.INVALID_SUBSCRIPTION_ID if
+     *              deselecting previously set preference.
+     */
+    public boolean selectProfileForData(int subId) {
+        if ((subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID)
+                || (isOpprotunisticSub(subId) && isActiveSub(subId))) {
+            mSubscriptionManager.setPreferredData(subId);
+            return true;
+        } else {
+            log("Inactive sub passed for preferred data " + subId);
+            return false;
+        }
+    }
+
+    public int getPreferedData() {
+        // Todo: b/117833883
+        return SubscriptionManager.INVALID_SUBSCRIPTION_ID;
+    }
+
+    /**
      * stop profile selection procedure
      */
     public void stopProfileSelection() {
         mNetworkScanCtlr.stopNetworkScan();
         synchronized (mLock) {
             mIsEnabled = false;
+        }
+    }
+
+    @VisibleForTesting
+    protected void updateOpportunisticSubscriptions() {
+        synchronized (mLock) {
+            mOppSubscriptionInfos = mSubscriptionManager.getOpportunisticSubscriptions();
         }
     }
 
@@ -323,11 +377,10 @@ public class ANSProfileSelector {
                 mContext.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
         mNetworkScanCtlr = new ANSNetworkScanCtlr(mContext, mTelephonyManager,
                 mNetworkAvailableCallBack);
-
+        updateOpportunisticSubscriptions();
         /* register for profile update events */
         mSubscriptionManager.addOnOpportunisticSubscriptionsChangedListener(
                 AsyncTask.SERIAL_EXECUTOR, mProfileChangeListener);
-
         /* register for subscription switch intent */
         mContext.registerReceiver(mProfileSelectorBroadcastReceiver,
                 new IntentFilter(ACTION_SUB_SWITCH));
