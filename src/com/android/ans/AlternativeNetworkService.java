@@ -43,7 +43,6 @@ public class AlternativeNetworkService extends Service {
     private final Object mLock = new Object();
     private boolean mIsEnabled;
     private ANSProfileSelector mProfileSelector;
-    private ANSServiceStateEvaluator mServiceStateEvaluator;
     private SharedPreferences mSharedPref;
 
     private static final String TAG = "ANS";
@@ -60,25 +59,9 @@ public class AlternativeNetworkService extends Service {
             new ANSProfileSelector.ANSProfileSelectionCallback() {
 
                 @Override
-                public void onProfileSelectionDone(int dataSubId, int voiceSubId) {
+                public void onProfileSelectionDone() {
                     logDebug("profile selection done");
                     mProfileSelector.stopProfileSelection();
-                    mServiceStateEvaluator.startEvaluation(dataSubId, voiceSubId);
-                }
-            };
-
-    /**
-     * Service state evaluator callback. Will be called once service state evaluator thinks
-     * that current opportunistic data is not providing good service.
-     */
-    private ANSServiceStateEvaluator.ANSServiceEvaluatorCallback mServiceEvaluatorCallback =
-            new ANSServiceStateEvaluator.ANSServiceEvaluatorCallback() {
-                @Override
-                public void onBadDataService() {
-                    logDebug("Bad opportunistic data service");
-                    mServiceStateEvaluator.stopEvaluation();
-                    mProfileSelector.selectPrimaryProfileForData();
-                    mProfileSelector.startProfileSelection();
                 }
             };
 
@@ -166,7 +149,6 @@ public class AlternativeNetworkService extends Service {
     private void initialize(Context context) {
         mContext = context;
         mTelephonyManager = TelephonyManager.from(mContext);
-        mServiceStateEvaluator = new ANSServiceStateEvaluator(mContext, mServiceEvaluatorCallback);
         mProfileSelector = new ANSProfileSelector(mContext, mProfileSelectionCallback);
         mSharedPref = mContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
         mSubsriptionManager = (SubscriptionManager) mContext.getSystemService(
