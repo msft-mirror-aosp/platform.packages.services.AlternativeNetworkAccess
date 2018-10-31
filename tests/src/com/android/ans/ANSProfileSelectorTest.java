@@ -75,6 +75,10 @@ public class ANSProfileSelectorTest extends ANSBaseTest {
             mHandler.sendEmptyMessage(1);
         }
 
+        public void updateOppSubs() {
+            updateOpportunisticSubscriptions();
+        }
+
         protected void init(Context c,
                 MyANSProfileSelector.ANSProfileSelectionCallback aNSProfileSelectionCallback) {
             super.init(c, aNSProfileSelectionCallback);
@@ -186,7 +190,135 @@ public class ANSProfileSelectorTest extends ANSBaseTest {
         callbackIntent.putExtra("sequenceId", 1);
         callbackIntent.putExtra("subId", 5);
         assertFalse(mReady);
-        mANSProfileSelector.mProfileSelectorBroadcastReceiverCpy.onReceive(mContext, callbackIntent);
+        mANSProfileSelector.mProfileSelectorBroadcastReceiverCpy.onReceive(mContext,
+                callbackIntent);
+        waitUntilReady();
         assertTrue(mReady);
+    }
+
+    @Test
+    public void testselectProfileForDataWithNoOpportunsticSub() {
+        mReady = false;
+        doReturn(null).when(mSubscriptionManager).getOpportunisticSubscriptions();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                Looper.prepare();
+                mANSProfileSelector = new MyANSProfileSelector(mContext,
+                        new MyANSProfileSelector.ANSProfileSelectionCallback() {
+                            public void onProfileSelectionDone() {}
+                        });
+                mLooper = Looper.myLooper();
+                setReady(true);
+                Looper.loop();
+            }
+        }).start();
+
+        // Wait till initialization is complete.
+        waitUntilReady();
+
+        // Testing selectProfileForData with no oppotunistic sub and the function should
+        // return false.
+        boolean ret = mANSProfileSelector.selectProfileForData(1);
+        assertFalse(ret);
+    }
+
+    @Test
+    public void testselectProfileForDataWithInActiveSub() {
+        List<SubscriptionInfo> subscriptionInfoList = new ArrayList<SubscriptionInfo>();
+        SubscriptionInfo subscriptionInfo = new SubscriptionInfo(5, "", 1, "TMO", "TMO", 1, 1,
+                "123", 1, null, "310", "210", "", false, null, "1");
+        subscriptionInfoList.add(subscriptionInfo);
+        mReady = false;
+        doReturn(null).when(mSubscriptionManager).getOpportunisticSubscriptions();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                Looper.prepare();
+                mANSProfileSelector = new MyANSProfileSelector(mContext,
+                        new MyANSProfileSelector.ANSProfileSelectionCallback() {
+                            public void onProfileSelectionDone() {}
+                        });
+                mLooper = Looper.myLooper();
+                setReady(true);
+                Looper.loop();
+            }
+        }).start();
+
+        // Wait till initialization is complete.
+        waitUntilReady();
+
+        // Testing selectProfileForData with in active sub and the function should return false.
+        boolean ret = mANSProfileSelector.selectProfileForData(5);
+        assertFalse(ret);
+    }
+
+    @Test
+    public void testselectProfileForDataWithInvalidSubId() {
+        List<SubscriptionInfo> subscriptionInfoList = new ArrayList<SubscriptionInfo>();
+        SubscriptionInfo subscriptionInfo = new SubscriptionInfo(5, "", 1, "TMO", "TMO", 1, 1,
+                "123", 1, null, "310", "210", "", false, null, "1");
+        subscriptionInfoList.add(subscriptionInfo);
+        mReady = false;
+        doReturn(subscriptionInfoList).when(mSubscriptionManager).getOpportunisticSubscriptions();
+        doNothing().when(mSubscriptionManager).setPreferredData(anyInt());
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                Looper.prepare();
+                mANSProfileSelector = new MyANSProfileSelector(mContext,
+                        new MyANSProfileSelector.ANSProfileSelectionCallback() {
+                            public void onProfileSelectionDone() {}
+                        });
+                mLooper = Looper.myLooper();
+                setReady(true);
+                Looper.loop();
+            }
+        }).start();
+
+        // Wait till initialization is complete.
+        waitUntilReady();
+
+        // Testing selectProfileForData with INVALID_SUBSCRIPTION_ID and the function should
+        // return true.
+        boolean ret = mANSProfileSelector.selectProfileForData(
+                SubscriptionManager.INVALID_SUBSCRIPTION_ID);
+        assertTrue(ret);
+    }
+
+    @Test
+    public void testselectProfileForDataWithValidSub() {
+        List<SubscriptionInfo> subscriptionInfoList = new ArrayList<SubscriptionInfo>();
+        SubscriptionInfo subscriptionInfo = new SubscriptionInfo(5, "", 1, "TMO", "TMO", 1, 1,
+                "123", 1, null, "310", "210", "", false, null, "1");
+        subscriptionInfoList.add(subscriptionInfo);
+        mReady = false;
+        doReturn(subscriptionInfoList).when(mSubscriptionManager)
+                .getActiveSubscriptionInfoList();
+        doNothing().when(mSubscriptionManager).setPreferredData(anyInt());
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                Looper.prepare();
+                doReturn(subscriptionInfoList).when(mSubscriptionManager)
+                        .getOpportunisticSubscriptions();
+                mANSProfileSelector = new MyANSProfileSelector(mContext,
+                        new MyANSProfileSelector.ANSProfileSelectionCallback() {
+                            public void onProfileSelectionDone() {}
+                        });
+                mANSProfileSelector.updateOppSubs();
+                mLooper = Looper.myLooper();
+                setReady(true);
+                Looper.loop();
+            }
+        }).start();
+
+        // Wait till initialization is complete.
+        waitUntilReady();
+
+        // Testing selectProfileForData with valid opportunistic sub and the function should
+        // return true.
+        boolean ret = mANSProfileSelector.selectProfileForData(5);
+        assertTrue(ret);
     }
 }
