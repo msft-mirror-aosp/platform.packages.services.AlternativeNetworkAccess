@@ -274,7 +274,7 @@ public class ANSProfileSelector {
     }
 
     private void switchPreferredData(int subId) {
-        mSubscriptionManager.setPreferredData(mSubscriptionManager.getSlotIndex(subId));
+        mSubscriptionManager.setPreferredData(subId);
         onDataSwitchComplete(subId);
     }
 
@@ -329,7 +329,7 @@ public class ANSProfileSelector {
      * select primary profile for data
      */
     public void selectPrimaryProfileForData() {
-        mSubscriptionManager.setPreferredData(mSubscriptionManager.getDefaultSubscriptionId());
+        mSubscriptionManager.setPreferredData(SubscriptionManager.INVALID_SUBSCRIPTION_ID);
     }
 
     /**
