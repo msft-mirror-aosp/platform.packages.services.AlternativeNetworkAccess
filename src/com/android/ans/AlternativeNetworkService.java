@@ -20,6 +20,7 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.os.Binder;
 import android.os.IBinder;
 import android.os.ServiceManager;
@@ -38,7 +39,7 @@ import com.android.internal.telephony.TelephonyPermissions;
 public class AlternativeNetworkService extends Service {
     private Context mContext;
     private TelephonyManager mTelephonyManager;
-    private SubscriptionManager mSubsriptionManager;
+    private SubscriptionManager mSubscriptionManager;
 
     private final Object mLock = new Object();
     private boolean mIsEnabled;
@@ -65,6 +66,15 @@ public class AlternativeNetworkService extends Service {
                 }
             };
 
+    private static boolean enforceModifyPhoneStatePermission(Context context) {
+        if (context.checkCallingOrSelfPermission(android.Manifest.permission.MODIFY_PHONE_STATE)
+                == PackageManager.PERMISSION_GRANTED) {
+            return true;
+        }
+
+        return false;
+    }
+
     private final IAns.Stub mBinder = new IAns.Stub() {
         /**
          * Enable or disable Alternative Network service.
@@ -84,7 +94,7 @@ public class AlternativeNetworkService extends Service {
         @Override
         public boolean setEnable(boolean enable, String callingPackage) {
             TelephonyPermissions.enforceCallingOrSelfModifyPermissionOrCarrierPrivilege(
-                    mContext, mSubsriptionManager.getDefaultSubscriptionId(), "setEnable");
+                    mContext, mSubscriptionManager.getDefaultSubscriptionId(), "setEnable");
             log("setEnable: " + enable);
 
             final long identity = Binder.clearCallingIdentity();
@@ -113,8 +123,62 @@ public class AlternativeNetworkService extends Service {
         @Override
         public boolean isEnabled(String callingPackage) {
             TelephonyPermissions.enforeceCallingOrSelfReadPhoneStatePermissionOrCarrierPrivilege(
-                    mContext, mSubsriptionManager.getDefaultSubscriptionId(), "isEnabled");
+                    mContext, mSubscriptionManager.getDefaultSubscriptionId(), "isEnabled");
             return mIsEnabled;
+        }
+
+        /**
+         * Set preferred opportunistic data.
+         *
+         * <p>Requires that the calling app has carrier privileges on both primary and
+         * secondary subscriptions (see
+         * {@link #hasCarrierPrivileges}), or has permission
+         * {@link android.Manifest.permission#MODIFY_PHONE_STATE MODIFY_PHONE_STATE}.
+         * @param subId which opportunistic subscription
+         * {@link SubscriptionManager#getOpportunisticSubscriptions} is preferred for cellular data.
+         * Pass {@link SubscriptionManager#DEFAULT_SUBSCRIPTION_ID} to unset the preference
+         * @param callingPackage caller's package name
+         * @return true if request is accepted, else false.
+         *
+         */
+        public boolean setPreferredData(int subId, String callingPackage) {
+            logDebug("setPreferredData subId:" + subId + "callingPackage: " + callingPackage);
+            if (!enforceModifyPhoneStatePermission(mContext)) {
+                TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(
+                        mSubscriptionManager.getDefaultSubscriptionId(), "setPreferredData");
+                if (subId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+                    TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(subId,
+                            "setPreferredData");
+                }
+            }
+            final long identity = Binder.clearCallingIdentity();
+            try {
+                return mProfileSelector.selectProfileForData(subId);
+            } finally {
+                Binder.restoreCallingIdentity(identity);
+            }
+        }
+
+        /**
+         * Get preferred default data sub Id
+         *
+         * <p>Requires that the calling app has carrier privileges
+         * (see {@link #hasCarrierPrivileges}),or has permission
+         * {@link android.Manifest.permission#READ_PHONE_STATE READ_PHONE_STATE}.
+         * @return subId preferred opportunistic subscription id or
+         * {@link SubscriptionManager#DEFAULT_SUBSCRIPTION_ID} if there are no preferred
+         * subscription id
+         *
+         */
+        public int getPreferredData(String callingPackage) {
+            TelephonyPermissions.enforeceCallingOrSelfReadPhoneStatePermissionOrCarrierPrivilege(
+                    mContext, mSubscriptionManager.getDefaultSubscriptionId(), "getPreferredData");
+            final long identity = Binder.clearCallingIdentity();
+            try {
+                return mProfileSelector.getPreferedData();
+            } finally {
+                Binder.restoreCallingIdentity(identity);
+            }
         }
     };
 
@@ -151,7 +215,7 @@ public class AlternativeNetworkService extends Service {
         mTelephonyManager = TelephonyManager.from(mContext);
         mProfileSelector = new ANSProfileSelector(mContext, mProfileSelectionCallback);
         mSharedPref = mContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-        mSubsriptionManager = (SubscriptionManager) mContext.getSystemService(
+        mSubscriptionManager = (SubscriptionManager) mContext.getSystemService(
                 Context.TELEPHONY_SUBSCRIPTION_SERVICE);
         enableAlternativeNetwork(getPersistentEnableState());
     }
