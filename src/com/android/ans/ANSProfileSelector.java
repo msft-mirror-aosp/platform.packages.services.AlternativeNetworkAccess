@@ -51,7 +51,7 @@ public class ANSProfileSelector {
     private final Object mLock = new Object();
 
     private static final int INVALID_SEQUENCE_ID = -1;
-    private static final int START_SEQUENCE_ID = 1;
+    private static final int START_SEQUENCE_ID = 0;
 
     /* message to indicate profile update */
     private static final int MSG_PROFILE_UPDATE = 1;
@@ -74,26 +74,8 @@ public class ANSProfileSelector {
     private ANSProfileSelectionCallback mProfileSelectionCallback;
     private int mSequenceId;
 
-    /* monitor the subscription for registration */
-    private ANSServiceStateMonitor mRegMonitor;
     public static final String ACTION_SUB_SWITCH =
             "android.intent.action.SUBSCRIPTION_SWITCH_REPLY";
-
-    /* service monitor callback will get called for service state change on a particular subId. */
-    @VisibleForTesting
-    protected ANSServiceStateMonitor.ANSServiceMonitorCallback mServiceMonitorCallback =
-            new ANSServiceStateMonitor.ANSServiceMonitorCallback() {
-                @Override
-                public void onServiceMonitorUpdate(int subId, int state) {
-                    switch (state) {
-                        case ANSServiceStateMonitor.SERVICE_STATE_GOOD:
-                            switchPreferredData(subId);
-                            break;
-                        default:
-                            break;
-                    }
-                }
-            };
 
     @VisibleForTesting
     protected SubscriptionManager.OnOpportunisticSubscriptionsChangedListener
@@ -177,15 +159,7 @@ public class ANSProfileSelector {
 
                     /* if subscription is already active, proceed to data switch */
                     if (mSubscriptionManager.isActiveSubId(subId)) {
-                        /* if subscription already is data subscription,
-                         complete the profile selection process */
-                        /* Todo: change to getPreferredDataSubscriptionId once ready */
-                        if (mSubscriptionManager.getDefaultDataSubscriptionId() == subId) {
-                            mProfileSelectionCallback.onProfileSelectionDone(subId,
-                                    mSubscriptionManager.getDefaultSubscriptionId());
-                        } else {
-                            switchPreferredData(subId);
-                        }
+                        mProfileSelectionCallback.onProfileSelectionDone();
                     } else {
                         switchToSubscription(subId);
                     }
@@ -205,7 +179,7 @@ public class ANSProfileSelector {
         /**
          * interface call back to confirm profile selection
          */
-        void onProfileSelectionDone(int dataSubId, int voiceSubId);
+        void onProfileSelectionDone();
     }
 
     /**
@@ -279,16 +253,10 @@ public class ANSProfileSelector {
 
     private void switchPreferredData(int subId) {
         mSubscriptionManager.setPreferredData(subId);
-        onDataSwitchComplete(subId);
     }
 
     private void onSubSwitchComplete(int subId) {
-        mRegMonitor.startListeningForNetworkConditionChange(subId);
-    }
-
-    private void onDataSwitchComplete(int subId) {
-        mProfileSelectionCallback.onProfileSelectionDone(subId,
-                mSubscriptionManager.getDefaultSubscriptionId());
+        mProfileSelectionCallback.onProfileSelectionDone();
     }
 
     private int getAndUpdateToken() {
@@ -353,7 +321,6 @@ public class ANSProfileSelector {
                 mContext.getSystemService(Context.TELEPHONY_SERVICE);
         mSubscriptionManager = (SubscriptionManager)
                 mContext.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
-        mRegMonitor = new ANSServiceStateMonitor(mContext, mServiceMonitorCallback);
         mNetworkScanCtlr = new ANSNetworkScanCtlr(mContext, mTelephonyManager,
                 mNetworkAvailableCallBack);
 

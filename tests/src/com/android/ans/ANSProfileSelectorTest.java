@@ -48,7 +48,6 @@ public class ANSProfileSelectorTest extends ANSBaseTest {
     private boolean testFailed;
     private boolean mCallbackInvoked;
     private int mDataSubId;
-    ANSServiceStateMonitor.PhoneStateListenerImpl mPhoneStateListener;
     @Mock
     ANSNetworkScanCtlr mANSNetworkScanCtlr;
     private Looper mLooper;
@@ -56,15 +55,13 @@ public class ANSProfileSelectorTest extends ANSBaseTest {
 
     MyANSProfileSelector.ANSProfileSelectionCallback mANSProfileSelectionCallback =
             new MyANSProfileSelector.ANSProfileSelectionCallback() {
-        public void onProfileSelectionDone(int dataSubId, int voiceSubId) {
-            Rlog.d(TAG, "onProfileSelectionDone " + dataSubId + " " + voiceSubId);
+        public void onProfileSelectionDone() {
             mCallbackInvoked = true;
             setReady(true);
         }
     };
 
     public class MyANSProfileSelector extends ANSProfileSelector {
-        public ANSServiceStateMonitor.ANSServiceMonitorCallback mServiceMonitorCallbackCpy;
         public SubscriptionManager.OnOpportunisticSubscriptionsChangedListener mProfileChngLstnrCpy;
         public BroadcastReceiver mProfileSelectorBroadcastReceiverCpy;
         public ANSNetworkScanCtlr.NetworkAvailableCallBack mNetworkAvailableCallBackCpy;
@@ -82,7 +79,6 @@ public class ANSProfileSelectorTest extends ANSBaseTest {
                 MyANSProfileSelector.ANSProfileSelectionCallback aNSProfileSelectionCallback) {
             super.init(c, aNSProfileSelectionCallback);
             this.mSubscriptionManager = ANSProfileSelectorTest.this.mSubscriptionManager;
-            mServiceMonitorCallbackCpy = mServiceMonitorCallback;
             mProfileChngLstnrCpy = mProfileChangeListener;
             mProfileSelectorBroadcastReceiverCpy = mProfileSelectorBroadcastReceiver;
             mNetworkAvailableCallBackCpy = mNetworkAvailableCallBack;
@@ -164,9 +160,7 @@ public class ANSProfileSelectorTest extends ANSBaseTest {
                 Looper.prepare();
                 mANSProfileSelector = new MyANSProfileSelector(mContext,
                         new MyANSProfileSelector.ANSProfileSelectionCallback() {
-                    public void onProfileSelectionDone(int dataSubId, int voiceSubId) {
-                        Rlog.d(TAG, "onProfileSelectionDone " + dataSubId + " " + voiceSubId);
-                        mDataSubId = dataSubId;
+                    public void onProfileSelectionDone() {
                         setReady(true);
                     }
                 });
@@ -193,10 +187,6 @@ public class ANSProfileSelectorTest extends ANSBaseTest {
         callbackIntent.putExtra("subId", 5);
         assertFalse(mReady);
         mANSProfileSelector.mProfileSelectorBroadcastReceiverCpy.onReceive(mContext, callbackIntent);
-        assertFalse(mReady);
-        mANSProfileSelector.mServiceMonitorCallbackCpy.onServiceMonitorUpdate(5,
-                ANSServiceStateMonitor.SERVICE_STATE_GOOD);
-        waitUntilReady();
-        assertEquals(5, mDataSubId);
+        assertTrue(mReady);
     }
 }
