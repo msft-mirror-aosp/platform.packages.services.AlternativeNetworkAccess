@@ -20,6 +20,7 @@ import static org.junit.Assert.assertFalse;
 import static org.mockito.Mockito.*;
 
 import android.os.Looper;
+import android.telephony.AvailableNetworkInfo;
 import android.telephony.CellIdentityLte;
 import android.telephony.CellInfo;
 import android.telephony.CellInfoLte;
@@ -33,6 +34,7 @@ import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.sql.Array;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -67,6 +69,11 @@ public class ANSNetworkScanCtlrTest extends ANSBaseTest {
         SubscriptionInfo subscriptionInfo = new SubscriptionInfo(1, "", 1, "TMO", "TMO", 1, 1,
                 "123", 1, null, "310", "210", "", false, null, "1");
         subscriptionInfoList.add(subscriptionInfo);
+        ArrayList<String> mccMncs = new ArrayList<>();
+        mccMncs.add("310210");
+        AvailableNetworkInfo availableNetworkInfo = new AvailableNetworkInfo(1, 1, mccMncs);
+        ArrayList<AvailableNetworkInfo> availableNetworkInfos = new ArrayList<AvailableNetworkInfo>();
+        availableNetworkInfos.add(availableNetworkInfo);
         List<CellInfo> expectedResults = new ArrayList<CellInfo>();
         CellIdentityLte cellIdentityLte = new CellIdentityLte(310, 210, 1, 1, 1);
         CellInfoLte cellInfoLte = new CellInfoLte();
@@ -103,7 +110,7 @@ public class ANSNetworkScanCtlrTest extends ANSBaseTest {
         mReady = false;
 
         // Testing startFastNetworkScan, onNetworkAvailability should be called with expectedResults
-        mANSNetworkScanCtlr.startFastNetworkScan(subscriptionInfoList);
+        mANSNetworkScanCtlr.startFastNetworkScan(availableNetworkInfos);
         mANSNetworkScanCtlr.mNetworkScanCallback.onResults(expectedResults);
         waitUntilReady(100);
         assertEquals(expectedResults, mResults);
@@ -120,6 +127,11 @@ public class ANSNetworkScanCtlrTest extends ANSBaseTest {
         CellInfoLte cellInfoLte = new CellInfoLte();
         cellInfoLte.setCellIdentity(cellIdentityLte);
         expectedResults.add((CellInfo)cellInfoLte);
+        ArrayList<String> mccMncs = new ArrayList<>();
+        mccMncs.add("310210");
+        AvailableNetworkInfo availableNetworkInfo = new AvailableNetworkInfo(1, 1, mccMncs);
+        ArrayList<AvailableNetworkInfo> availableNetworkInfos = new ArrayList<AvailableNetworkInfo>();
+        availableNetworkInfos.add(availableNetworkInfo);
         mReady = false;
         mError = NetworkScan.SUCCESS;
 
@@ -154,14 +166,14 @@ public class ANSNetworkScanCtlrTest extends ANSBaseTest {
         mReady = false;
 
         // Testing startFastNetworkScan, onError should be called with ERROR_INVALID_SCAN
-        mANSNetworkScanCtlr.startFastNetworkScan(subscriptionInfoList);
+        mANSNetworkScanCtlr.startFastNetworkScan(availableNetworkInfos);
         mANSNetworkScanCtlr.mNetworkScanCallback.onError(NetworkScan.ERROR_INVALID_SCAN);
         waitUntilReady(100);
         assertEquals(NetworkScan.ERROR_INVALID_SCAN, mError);
     }
 
     @Test
-    public void testStartSlowNetworkScan() {
+    public void testStartFastNetworkScanWithMultipleNetworks() {
         List<SubscriptionInfo> subscriptionInfoList = new ArrayList<SubscriptionInfo>();
         SubscriptionInfo subscriptionInfo = new SubscriptionInfo(1, "", 1, "TMO", "TMO", 1, 1,
                 "123", 1, null, "310", "210", "", false, null, "1");
@@ -171,6 +183,12 @@ public class ANSNetworkScanCtlrTest extends ANSBaseTest {
         CellInfoLte cellInfoLte = new CellInfoLte();
         cellInfoLte.setCellIdentity(cellIdentityLte);
         expectedResults.add((CellInfo)cellInfoLte);
+        ArrayList<String> mccMncs = new ArrayList<>();
+        mccMncs.add("310210");
+        mccMncs.add("310211");
+        AvailableNetworkInfo availableNetworkInfo = new AvailableNetworkInfo(1, 1, mccMncs);
+        ArrayList<AvailableNetworkInfo> availableNetworkInfos = new ArrayList<AvailableNetworkInfo>();
+        availableNetworkInfos.add(availableNetworkInfo);
         mReady = false;
 
         // initializing ANSNetworkScanCtlr
@@ -203,7 +221,7 @@ public class ANSNetworkScanCtlrTest extends ANSBaseTest {
         mReady = false;
 
         // Testing startSlowNetworkScan, onNetworkAvailability should be called with expectedResults
-        mANSNetworkScanCtlr.startSlowNetworkScan(subscriptionInfoList);
+        mANSNetworkScanCtlr.startFastNetworkScan(availableNetworkInfos);
         mANSNetworkScanCtlr.mNetworkScanCallback.onResults(expectedResults);
         waitUntilReady(100);
         assertEquals(expectedResults, mResults);
@@ -220,6 +238,11 @@ public class ANSNetworkScanCtlrTest extends ANSBaseTest {
         CellInfoLte cellInfoLte = new CellInfoLte();
         cellInfoLte.setCellIdentity(cellIdentityLte);
         expectedResults.add((CellInfo)cellInfoLte);
+        ArrayList<String> mccMncs = new ArrayList<>();
+        mccMncs.add("310210");
+        AvailableNetworkInfo availableNetworkInfo = new AvailableNetworkInfo(1, 1, mccMncs);
+        ArrayList<AvailableNetworkInfo> availableNetworkInfos = new ArrayList<AvailableNetworkInfo>();
+        availableNetworkInfos.add(availableNetworkInfo);
         mCallbackInvoked = false;
         mReady = false;
 
@@ -252,7 +275,7 @@ public class ANSNetworkScanCtlrTest extends ANSBaseTest {
         mReady = false;
 
         // Testing stopNetworkScan, should not get any callback invocation after stopNetworkScan.
-        mANSNetworkScanCtlr.startSlowNetworkScan(subscriptionInfoList);
+        mANSNetworkScanCtlr.startFastNetworkScan(availableNetworkInfos);
         mANSNetworkScanCtlr.stopNetworkScan();
         mANSNetworkScanCtlr.mNetworkScanCallback.onResults(expectedResults);
         waitUntilReady(100);
