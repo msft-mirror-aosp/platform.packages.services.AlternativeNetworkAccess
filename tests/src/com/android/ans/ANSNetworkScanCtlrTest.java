@@ -65,10 +65,6 @@ public class ANSNetworkScanCtlrTest extends ANSBaseTest {
 
     @Test
     public void testStartFastNetworkScan() {
-        List<SubscriptionInfo> subscriptionInfoList = new ArrayList<SubscriptionInfo>();
-        SubscriptionInfo subscriptionInfo = new SubscriptionInfo(1, "", 1, "TMO", "TMO", 1, 1,
-                "123", 1, null, "310", "210", "", false, null, "1");
-        subscriptionInfoList.add(subscriptionInfo);
         ArrayList<String> mccMncs = new ArrayList<>();
         mccMncs.add("310210");
         AvailableNetworkInfo availableNetworkInfo = new AvailableNetworkInfo(1, 1, mccMncs);
@@ -118,10 +114,6 @@ public class ANSNetworkScanCtlrTest extends ANSBaseTest {
 
     @Test
     public void testStartFastNetworkScanFail() {
-        List<SubscriptionInfo> subscriptionInfoList = new ArrayList<SubscriptionInfo>();
-        SubscriptionInfo subscriptionInfo = new SubscriptionInfo(1, "", 1, "TMO", "TMO", 1, 1,
-                "123", 1, null, "310", "210", "", false, null, "1");
-        subscriptionInfoList.add(subscriptionInfo);
         List<CellInfo> expectedResults = new ArrayList<CellInfo>();
         CellIdentityLte cellIdentityLte = new CellIdentityLte(310, 210, 1, 1, 1);
         CellInfoLte cellInfoLte = new CellInfoLte();
@@ -174,10 +166,6 @@ public class ANSNetworkScanCtlrTest extends ANSBaseTest {
 
     @Test
     public void testStartFastNetworkScanWithMultipleNetworks() {
-        List<SubscriptionInfo> subscriptionInfoList = new ArrayList<SubscriptionInfo>();
-        SubscriptionInfo subscriptionInfo = new SubscriptionInfo(1, "", 1, "TMO", "TMO", 1, 1,
-                "123", 1, null, "310", "210", "", false, null, "1");
-        subscriptionInfoList.add(subscriptionInfo);
         List<CellInfo> expectedResults = new ArrayList<CellInfo>();
         CellIdentityLte cellIdentityLte = new CellIdentityLte(310, 210, 1, 1, 1);
         CellInfoLte cellInfoLte = new CellInfoLte();
@@ -229,10 +217,6 @@ public class ANSNetworkScanCtlrTest extends ANSBaseTest {
 
     @Test
     public void testStopNetworkScan() {
-        List<SubscriptionInfo> subscriptionInfoList = new ArrayList<SubscriptionInfo>();
-        SubscriptionInfo subscriptionInfo = new SubscriptionInfo(1, "", 1, "TMO", "TMO", 1, 1,
-                "123", 1, null, "310", "210", "", false, null, "1");
-        subscriptionInfoList.add(subscriptionInfo);
         List<CellInfo> expectedResults = new ArrayList<CellInfo>();
         CellIdentityLte cellIdentityLte = new CellIdentityLte(310, 210, 1, 1, 1);
         CellInfoLte cellInfoLte = new CellInfoLte();
