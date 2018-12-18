@@ -83,7 +83,7 @@ public class ANSProfileSelector {
     protected List<SubscriptionInfo> mOppSubscriptionInfos;
     private ANSProfileSelectionCallback mProfileSelectionCallback;
     private int mSequenceId;
-    private int mCurrentDataSubId;
+    private int mCurrentDataSubId = SubscriptionManager.INVALID_SUBSCRIPTION_ID;
     private ArrayList<AvailableNetworkInfo> mAvailableNetworkInfos;
 
     public static final String ACTION_SUB_SWITCH =
@@ -330,6 +330,7 @@ public class ANSProfileSelector {
 
     private void switchPreferredData(int subId) {
         mSubscriptionManager.setPreferredData(subId);
+        mCurrentDataSubId = subId;
     }
 
     private void onSubSwitchComplete() {
@@ -518,6 +519,7 @@ public class ANSProfileSelector {
         if ((subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID)
                 || (isOpprotunisticSub(subId) && isActiveSub(subId))) {
             mSubscriptionManager.setPreferredData(subId);
+            mCurrentDataSubId = subId;
             return true;
         } else {
             log("Inactive sub passed for preferred data " + subId);
@@ -526,8 +528,7 @@ public class ANSProfileSelector {
     }
 
     public int getPreferedData() {
-        // Todo: b/117833883
-        return SubscriptionManager.INVALID_SUBSCRIPTION_ID;
+        return mCurrentDataSubId;
     }
 
     /**
