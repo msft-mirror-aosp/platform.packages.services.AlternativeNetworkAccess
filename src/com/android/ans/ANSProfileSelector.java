@@ -481,14 +481,6 @@ public class ANSProfileSelector {
         return false;
     }
 
-    /**
-     * select primary profile for data
-     */
-    public void selectPrimaryProfileForData() {
-        mSubscriptionManager.setPreferredData(SubscriptionManager.INVALID_SUBSCRIPTION_ID);
-        mCurrentDataSubId = mSubscriptionManager.getDefaultSubscriptionId();
-    }
-
     public void startProfileSelection(ArrayList<AvailableNetworkInfo> availableNetworks) {
         if (availableNetworks == null || availableNetworks.size() == 0) {
             return;
@@ -512,11 +504,11 @@ public class ANSProfileSelector {
 
     /**
      * select opportunistic profile for data if passing a valid subId.
-     * @param subId : opportunistic subId or SubscriptionManager.INVALID_SUBSCRIPTION_ID if
+     * @param subId : opportunistic subId or SubscriptionManager.DEFAULT_SUBSCRIPTION_ID if
      *              deselecting previously set preference.
      */
     public boolean selectProfileForData(int subId) {
-        if ((subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID)
+        if ((subId == SubscriptionManager.DEFAULT_SUBSCRIPTION_ID)
                 || (isOpprotunisticSub(subId) && isActiveSub(subId))) {
             mSubscriptionManager.setPreferredData(subId);
             mCurrentDataSubId = subId;
