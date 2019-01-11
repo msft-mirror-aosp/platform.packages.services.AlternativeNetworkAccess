@@ -15,25 +15,19 @@
  */
 package com.android.ons;
 
-import static org.junit.Assert.*;
 import static org.junit.Assert.assertFalse;
 import static org.mockito.Mockito.*;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Handler;
-import android.os.HandlerThread;
 import android.os.Looper;
 import android.telephony.AvailableNetworkInfo;
 import android.telephony.CellIdentityLte;
 import android.telephony.CellInfo;
 import android.telephony.CellInfoLte;
-import android.telephony.NetworkScan;
-import android.telephony.Rlog;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
-import android.telephony.TelephonyManager;
 
 import org.junit.After;
 import org.junit.Before;
@@ -272,7 +266,7 @@ public class ONSProfileSelectorTest extends ONSBaseTest {
         subscriptionInfoList.add(subscriptionInfo);
         mReady = false;
         doReturn(subscriptionInfoList).when(mSubscriptionManager).getOpportunisticSubscriptions();
-        doNothing().when(mSubscriptionManager).setPreferredData(anyInt());
+        doNothing().when(mSubscriptionManager).setPreferredDataSubscriptionId(anyInt());
         new Thread(new Runnable() {
             @Override
             public void run() {
@@ -306,7 +300,7 @@ public class ONSProfileSelectorTest extends ONSBaseTest {
         mReady = false;
         doReturn(subscriptionInfoList).when(mSubscriptionManager)
                 .getActiveSubscriptionInfoList();
-        doNothing().when(mSubscriptionManager).setPreferredData(anyInt());
+        doNothing().when(mSubscriptionManager).setPreferredDataSubscriptionId(anyInt());
         new Thread(new Runnable() {
             @Override
             public void run() {
