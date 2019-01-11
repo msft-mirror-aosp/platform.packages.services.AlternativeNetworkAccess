@@ -28,9 +28,7 @@ import android.os.AsyncTask;
 import android.os.Handler;
 import android.os.Message;
 import android.telephony.CellInfo;
-import android.telephony.CellInfoGsm;
 import android.telephony.CellInfoLte;
-import android.telephony.CellInfoWcdma;
 import android.telephony.Rlog;
 import android.telephony.SignalStrength;
 import android.telephony.SubscriptionInfo;
@@ -46,7 +44,6 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.ArrayList;
-import java.util.HashMap;
 
 /**
  * Profile selector class which will select the right profile based upon
@@ -329,7 +326,7 @@ public class ONSProfileSelector {
     }
 
     private void switchPreferredData(int subId) {
-        mSubscriptionManager.setPreferredData(subId);
+        mSubscriptionManager.setPreferredDataSubscriptionId(subId);
         mCurrentDataSubId = subId;
     }
 
@@ -510,7 +507,7 @@ public class ONSProfileSelector {
     public boolean selectProfileForData(int subId) {
         if ((subId == SubscriptionManager.DEFAULT_SUBSCRIPTION_ID)
                 || (isOpprotunisticSub(subId) && isActiveSub(subId))) {
-            mSubscriptionManager.setPreferredData(subId);
+            mSubscriptionManager.setPreferredDataSubscriptionId(subId);
             mCurrentDataSubId = subId;
             return true;
         } else {
@@ -519,8 +516,8 @@ public class ONSProfileSelector {
         }
     }
 
-    public int getPreferedData() {
-        return mCurrentDataSubId;
+    public int getPreferredDataSubscriptionId() {
+        return mSubscriptionManager.getPreferredDataSubscriptionId();
     }
 
     /**
