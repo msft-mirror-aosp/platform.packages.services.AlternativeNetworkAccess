@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.ans;
+package com.android.ons;
 
 import android.content.Context;
 import android.os.Handler;
@@ -41,8 +41,8 @@ import java.util.concurrent.TimeUnit;
  * Network Scan controller class which will scan for the specific bands as requested and
  * provide results to caller when ready.
  */
-public class ANSNetworkScanCtlr {
-    private static final String LOG_TAG = "ANSNetworkScanCtlr";
+public class ONSNetworkScanCtlr {
+    private static final String LOG_TAG = "ONSNetworkScanCtlr";
     private static final boolean DBG = true;
     private static final int SEARCH_PERIODICITY_SLOW = (int) TimeUnit.MINUTES.toSeconds(5);
     private static final int SEARCH_PERIODICITY_FAST = (int) TimeUnit.MINUTES.toSeconds(1);
@@ -170,7 +170,7 @@ public class ANSNetworkScanCtlr {
         }
     }
 
-    public ANSNetworkScanCtlr(Context c, TelephonyManager telephonyManager,
+    public ONSNetworkScanCtlr(Context c, TelephonyManager telephonyManager,
             NetworkAvailableCallBack networkAvailableCallBack) {
         init(c, telephonyManager, networkAvailableCallBack);
     }
