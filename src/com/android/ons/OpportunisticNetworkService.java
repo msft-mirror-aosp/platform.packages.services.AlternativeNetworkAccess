@@ -17,16 +17,12 @@
 package com.android.ons;
 
 import android.app.Service;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Binder;
-import android.os.Handler;
 import android.os.IBinder;
-import android.os.Message;
 import android.os.ServiceManager;
 import android.telephony.AvailableNetworkInfo;
 import android.telephony.Rlog;
@@ -161,14 +157,14 @@ public class OpportunisticNetworkService extends Service {
          * @return true if request is accepted, else false.
          *
          */
-        public boolean setPreferredData(int subId, String callingPackage) {
-            logDebug("setPreferredData subId:" + subId + "callingPackage: " + callingPackage);
+        public boolean setPreferredDataSubscriptionId(int subId, String callingPackage) {
+            logDebug("setPreferredDataSubscriptionId subId:" + subId + "callingPackage: " + callingPackage);
             if (!enforceModifyPhoneStatePermission(mContext)) {
                 TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(
-                        mSubscriptionManager.getDefaultSubscriptionId(), "setPreferredData");
+                        mSubscriptionManager.getDefaultSubscriptionId(), "setPreferredDataSubscriptionId");
                 if (subId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
                     TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(subId,
-                            "setPreferredData");
+                            "setPreferredDataSubscriptionId");
                 }
             }
             final long identity = Binder.clearCallingIdentity();
@@ -190,12 +186,12 @@ public class OpportunisticNetworkService extends Service {
          * subscription id
          *
          */
-        public int getPreferredData(String callingPackage) {
+        public int getPreferredDataSubscriptionId(String callingPackage) {
             TelephonyPermissions.enforeceCallingOrSelfReadPhoneStatePermissionOrCarrierPrivilege(
-                    mContext, mSubscriptionManager.getDefaultSubscriptionId(), "getPreferredData");
+                    mContext, mSubscriptionManager.getDefaultSubscriptionId(), "getPreferredDataSubscriptionId");
             final long identity = Binder.clearCallingIdentity();
             try {
-                return mProfileSelector.getPreferedData();
+                return mProfileSelector.getPreferredDataSubscriptionId();
             } finally {
                 Binder.restoreCallingIdentity(identity);
             }
