@@ -352,19 +352,21 @@ public class ONSProfileSelector {
         Collections.sort(availableNetworks, new SortAvailableNetworks());
         int availableNetworksIndex = 0;
         int subscriptionInfoListIndex = 0;
-        SubscriptionInfo subscriptionInfo = subscriptionInfoList.get(subscriptionInfoListIndex);
-        AvailableNetworkInfo availableNetwork = availableNetworks.get(availableNetworksIndex);
+        SubscriptionInfo subscriptionInfo;
+        AvailableNetworkInfo availableNetwork;
 
-        while (availableNetworksIndex <= availableNetworks.size()
-                && subscriptionInfoListIndex <= subscriptionInfoList.size()) {
+        while (availableNetworksIndex < availableNetworks.size()
+                && subscriptionInfoListIndex < subscriptionInfoList.size()) {
+            subscriptionInfo = subscriptionInfoList.get(subscriptionInfoListIndex);
+            availableNetwork = availableNetworks.get(availableNetworksIndex);
             if (subscriptionInfo.getSubscriptionId() == availableNetwork.getSubId()) {
                 filteredAvailableNetworks.add(availableNetwork);
+                subscriptionInfoListIndex++;
+                availableNetworksIndex++;
             } else if (subscriptionInfo.getSubscriptionId() < availableNetwork.getSubId()) {
                 subscriptionInfoListIndex++;
-                subscriptionInfo = subscriptionInfoList.get(subscriptionInfoListIndex);
             } else {
                 availableNetworksIndex++;
-                availableNetwork = availableNetworks.get(availableNetworksIndex);
             }
         }
         return filteredAvailableNetworks;
@@ -404,6 +406,7 @@ public class ONSProfileSelector {
             }
         } else if (mOppSubscriptionInfos.size() == 0) {
             /* check if no profile */
+            logDebug("stopping scan");
             mNetworkScanCtlr.stopNetworkScan();
         }
     }
@@ -494,6 +497,7 @@ public class ONSProfileSelector {
             Collections.sort(mAvailableNetworkInfos, new SortAvailableNetworksInPriority());
             mIsEnabled = true;
         }
+        logDebug("startProfileSelection availableNetworks: " + availableNetworks);
         Message message = Message.obtain(mHandler, MSG_START_PROFILE_SELECTION,
                 availableNetworks);
         message.sendToTarget();
@@ -524,6 +528,7 @@ public class ONSProfileSelector {
      * stop profile selection procedure
      */
     public void stopProfileSelection() {
+        logDebug("stopProfileSelection");
         mNetworkScanCtlr.stopNetworkScan();
         /* Todo : bring down the stack */
 
