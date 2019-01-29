@@ -72,7 +72,6 @@ public class OpportunisticNetworkService extends Service {
                 @Override
                 public void onProfileSelectionDone() {
                     logDebug("profile selection done");
-                    mProfileSelector.stopProfileSelection();
                 }
             };
 
@@ -216,6 +215,7 @@ public class OpportunisticNetworkService extends Service {
          */
         public boolean updateAvailableNetworks(List<AvailableNetworkInfo> availableNetworks,
                 String callingPackage) {
+            logDebug("updateAvailableNetworks: " + availableNetworks);
             /* check if system app */
             if (enforceModifyPhoneStatePermission(mContext)) {
                 return handleSystemAppAvailableNetworks(
