@@ -140,7 +140,19 @@ public class ONSProfileSelector {
 
                     /* stop scanning further */
                     mNetworkScanCtlr.stopNetworkScan();
+                    handleNetworkScanResult(subId);
+                }
 
+                @Override
+                public void onError(int error) {
+                    log("Network scan failed with error " + error);
+                    if (mIsEnabled && mAvailableNetworkInfos != null
+                            && mAvailableNetworkInfos.size() > 0) {
+                        handleNetworkScanResult(mAvailableNetworkInfos.get(0).getSubId());
+                    }
+                }
+
+                private void handleNetworkScanResult(int subId) {
                     /* if subscription is already active, just enable modem */
                     if (mSubscriptionManager.isActiveSubId(subId)) {
                         enableModem(subId, true);
@@ -149,11 +161,6 @@ public class ONSProfileSelector {
                         logDebug("switch to sub:" + subId);
                         switchToSubscription(subId);
                     }
-                }
-
-                @Override
-                public void onError(int error) {
-                    log("Network scan failed with error " + error);
                 }
             };
 
@@ -379,10 +386,10 @@ public class ONSProfileSelector {
         }
 
         stopProfileSelection();
+        mIsEnabled = true;
         mAvailableNetworkInfos = availableNetworks;
         /* sort in the order of priority */
         Collections.sort(mAvailableNetworkInfos, new SortAvailableNetworksInPriority());
-        mIsEnabled = true;
         logDebug("availableNetworks: " + availableNetworks);
 
         if (mOppSubscriptionInfos.size() > 0) {
