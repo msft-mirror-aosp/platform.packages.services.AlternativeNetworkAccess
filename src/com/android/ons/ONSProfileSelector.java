@@ -321,7 +321,8 @@ public class ONSProfileSelector {
     }
 
     private void switchPreferredData(int subId) {
-        mSubscriptionManager.setPreferredDataSubscriptionId(subId);
+        mSubscriptionManager.setPreferredDataSubscriptionId(
+                subId, true, (command) -> {}, null);
         mCurrentDataSubId = subId;
     }
 
@@ -533,7 +534,8 @@ public class ONSProfileSelector {
     public boolean selectProfileForData(int subId) {
         if ((subId == SubscriptionManager.DEFAULT_SUBSCRIPTION_ID)
                 || (isOpprotunisticSub(subId) && isActiveSub(subId))) {
-            mSubscriptionManager.setPreferredDataSubscriptionId(subId);
+            mSubscriptionManager.setPreferredDataSubscriptionId(
+                    subId, true, (command) -> {}, null);
             mCurrentDataSubId = subId;
             return true;
         } else {
