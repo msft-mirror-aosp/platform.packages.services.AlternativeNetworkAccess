@@ -110,7 +110,8 @@ public class ONSProfileSelectorTest extends ONSBaseTest {
         results2.add((CellInfo)cellInfoLte);
         ArrayList<String> mccMncs = new ArrayList<>();
         mccMncs.add("310210");
-        AvailableNetworkInfo availableNetworkInfo = new AvailableNetworkInfo(1, 1, mccMncs);
+        AvailableNetworkInfo availableNetworkInfo = new AvailableNetworkInfo(1, 1, mccMncs,
+                new ArrayList<Integer>());
         ArrayList<AvailableNetworkInfo> availableNetworkInfos = new ArrayList<AvailableNetworkInfo>();
         availableNetworkInfos.add(availableNetworkInfo);
 
@@ -158,7 +159,8 @@ public class ONSProfileSelectorTest extends ONSBaseTest {
         results2.add((CellInfo)cellInfoLte);
         ArrayList<String> mccMncs = new ArrayList<>();
         mccMncs.add("310210");
-        AvailableNetworkInfo availableNetworkInfo = new AvailableNetworkInfo(1, 1, mccMncs);
+        AvailableNetworkInfo availableNetworkInfo = new AvailableNetworkInfo(1, 1, mccMncs,
+                new ArrayList<Integer>());
         ArrayList<AvailableNetworkInfo> availableNetworkInfos = new ArrayList<AvailableNetworkInfo>();
         availableNetworkInfos.add(availableNetworkInfo);
 
