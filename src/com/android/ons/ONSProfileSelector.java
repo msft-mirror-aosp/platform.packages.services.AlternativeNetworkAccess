@@ -461,7 +461,7 @@ public class ONSProfileSelector {
 
     private boolean isActiveSub(int subId) {
         List<SubscriptionInfo> subscriptionInfos =
-                mSubscriptionManager.getActiveSubscriptionInfoList();
+                mSubscriptionManager.getActiveSubscriptionInfoList(false);
         for (SubscriptionInfo subscriptionInfo : subscriptionInfos) {
             if (subscriptionInfo.getSubscriptionId() == subId) {
                 return true;
@@ -495,7 +495,7 @@ public class ONSProfileSelector {
 
     private int getActiveOpportunisticSubId() {
         List<SubscriptionInfo> subscriptionInfos =
-            mSubscriptionManager.getActiveSubscriptionInfoList();
+            mSubscriptionManager.getActiveSubscriptionInfoList(false);
         for (SubscriptionInfo subscriptionInfo : subscriptionInfos) {
             if (subscriptionInfo.isOpportunistic()) {
                 return subscriptionInfo.getSubscriptionId();
