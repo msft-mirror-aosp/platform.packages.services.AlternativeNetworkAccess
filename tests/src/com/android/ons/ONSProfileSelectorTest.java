@@ -137,7 +137,7 @@ public class ONSProfileSelectorTest extends ONSBaseTest {
 
         // Testing startProfileSelection without any oppotunistic data.
         // should not get any callback invocation.
-        mONSProfileSelector.startProfileSelection(availableNetworkInfos);
+        mONSProfileSelector.startProfileSelection(availableNetworkInfos, null);
         waitUntilReady(100);
         assertFalse(mCallbackInvoked);
     }
@@ -188,7 +188,7 @@ public class ONSProfileSelectorTest extends ONSBaseTest {
 
         // Testing startProfileSelection with oppotunistic sub.
         // On success onProfileSelectionDone must get invoked.
-        mONSProfileSelector.startProfileSelection(availableNetworkInfos);
+        mONSProfileSelector.startProfileSelection(availableNetworkInfos, null);
         assertFalse(mReady);
         mONSProfileSelector.mNetworkAvailableCallBackCpy.onNetworkAvailability(results2);
         Intent callbackIntent = new Intent(MyONSProfileSelector.ACTION_SUB_SWITCH);
