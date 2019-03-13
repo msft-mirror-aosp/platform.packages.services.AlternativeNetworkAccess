@@ -616,6 +616,7 @@ public class ONSProfileSelector {
         if (mNetworkScanCallback != null) {
             sendUpdateNetworksCallbackHelper(mNetworkScanCallback,
                     TelephonyManager.UPDATE_AVAILABLE_NETWORKS_ABORTED);
+            mNetworkScanCallback = null;
         }
         logDebug("stopProfileSelection");
         mNetworkScanCtlr.stopNetworkScan();
