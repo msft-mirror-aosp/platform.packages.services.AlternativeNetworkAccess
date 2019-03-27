@@ -30,6 +30,7 @@ import android.os.HandlerThread;
 import android.os.Message;
 import android.os.RemoteException;
 import android.os.ServiceManager;
+import android.telephony.AvailableNetworkInfo;
 import android.telephony.CellInfo;
 import android.telephony.CellInfoLte;
 import android.telephony.Rlog;
@@ -38,19 +39,18 @@ import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
-import android.telephony.AvailableNetworkInfo;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.ISetOpportunisticDataCallback;
 import com.android.internal.telephony.ISub;
 import com.android.internal.telephony.IUpdateAvailableNetworksCallback;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.ArrayList;
 
 /**
  * Profile selector class which will select the right profile based upon
@@ -335,7 +335,7 @@ public class ONSProfileSelector {
         callbackIntent.putExtra("sequenceId", getAndUpdateToken());
         callbackIntent.putExtra("subId", subId);
 
-        PendingIntent replyIntent = PendingIntent.getService(mContext,
+        PendingIntent replyIntent = PendingIntent.getBroadcast(mContext,
                 1, callbackIntent,
                 Intent.FILL_IN_ACTION);
         mSubscriptionManager.switchToSubscription(subId, replyIntent);
@@ -580,7 +580,7 @@ public class ONSProfileSelector {
     public void selectProfileForData(int subId, boolean needValidation,
             ISetOpportunisticDataCallback callbackStub) {
         if ((subId == SubscriptionManager.DEFAULT_SUBSCRIPTION_ID)
-                || (isOpprotunisticSub(subId) && isActiveSub(subId))) {
+                || (isOpprotunisticSub(subId) && mSubscriptionManager.isActiveSubId(subId))) {
             ISub iSub = ISub.Stub.asInterface(ServiceManager.getService("isub"));
             if (iSub == null) {
                 log("Could not get Subscription Service handle");
