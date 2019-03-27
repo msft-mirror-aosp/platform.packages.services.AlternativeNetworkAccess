@@ -396,7 +396,10 @@ public class ONSProfileSelector {
 
     private void sendUpdateNetworksCallbackHelper(IUpdateAvailableNetworksCallback callback,
             int result) {
-        if (callback == null) return;
+        if (callback == null) {
+            log("callback is null");
+            return;
+        }
         try {
             callback.onComplete(result);
         } catch (RemoteException exception) {
@@ -411,6 +414,8 @@ public class ONSProfileSelector {
                 (IUpdateAvailableNetworksCallback) objects[1];
         if (mOppSubscriptionInfos == null) {
             logDebug("null subscription infos");
+            sendUpdateNetworksCallbackHelper(callbackStub,
+                    TelephonyManager.UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS);
             return;
         }
         if (isSame(availableNetworks, mAvailableNetworkInfos)) {
