@@ -22,6 +22,7 @@ import android.os.HandlerThread;
 import android.os.Message;
 import android.os.PersistableBundle;
 import android.telephony.AccessNetworkConstants;
+import android.telephony.AvailableNetworkInfo;
 import android.telephony.CarrierConfigManager;
 import android.telephony.CellInfo;
 import android.telephony.CellInfoLte;
@@ -32,7 +33,6 @@ import android.telephony.Rlog;
 import android.telephony.SubscriptionInfo;
 import android.telephony.TelephonyManager;
 import android.telephony.TelephonyScanManager;
-import android.telephony.AvailableNetworkInfo;
 
 import com.android.internal.annotations.VisibleForTesting;
 
