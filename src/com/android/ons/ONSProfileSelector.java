@@ -601,7 +601,7 @@ public class ONSProfileSelector {
         } else {
             log("Inactive sub passed for preferred data " + subId);
             sendSetOpptCallbackHelper(callbackStub,
-                    TelephonyManager.SET_OPPORTUNISTIC_SUB_INVALID_PARAMETER);
+                    TelephonyManager.SET_OPPORTUNISTIC_SUB_INACTIVE_SUBSCRIPTION);
         }
     }
 
