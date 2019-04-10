@@ -351,12 +351,14 @@ public class OpportunisticNetworkService extends Service {
                 log("Carrier app should not pass more than one subscription");
                 sendUpdateNetworksCallbackHelper(callbackStub,
                         TelephonyManager.UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS);
+                return;
             }
 
             if (!mProfileSelector.hasOpprotunisticSub(availableNetworks)) {
                 log("No opportunistic subscriptions received");
                 sendUpdateNetworksCallbackHelper(callbackStub,
                         TelephonyManager.UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS);
+                return;
             }
             TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(
                     availableNetworks.get(0).getSubId(), "updateAvailableNetworks");
@@ -367,6 +369,7 @@ public class OpportunisticNetworkService extends Service {
                 log("No carrier privelege for opportunistic subscription");
                 sendUpdateNetworksCallbackHelper(callbackStub,
                         TelephonyManager.UPDATE_AVAILABLE_NETWORKS_NO_CARRIER_PRIVILEGE);
+                return;
             }
             final long identity = Binder.clearCallingIdentity();
             try {
@@ -427,6 +430,7 @@ public class OpportunisticNetworkService extends Service {
                     log("No opportunistic subscriptions received");
                     sendUpdateNetworksCallbackHelper(callbackStub,
                             TelephonyManager.UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS);
+                    return;
                 }
                 mONSConfigInputHashMap.put(SYSTEM_APP_CONFIG_NAME,
                         new ONSConfigInput(availableNetworks, callbackStub));
