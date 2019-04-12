@@ -134,7 +134,7 @@ public class OpportunisticNetworkService extends Service {
 
         logDebug("Carrier subscription is not available, removing entry");
         mONSConfigInputHashMap.put(CARRIER_APP_CONFIG_NAME, null);
-        if (mONSConfigInputHashMap.get(SYSTEM_APP_CONFIG_NAME).getAvailableNetworkInfos() != null) {
+        if (mONSConfigInputHashMap.get(SYSTEM_APP_CONFIG_NAME) != null) {
             mProfileSelector.startProfileSelection(
                     mONSConfigInputHashMap.get(SYSTEM_APP_CONFIG_NAME).getAvailableNetworkInfos(),
                     mONSConfigInputHashMap.get(
@@ -441,13 +441,12 @@ public class OpportunisticNetworkService extends Service {
                 }
             } else {
                 /* reporting unavailability */
-                mONSConfigInputHashMap.put(
-                        SYSTEM_APP_CONFIG_NAME, new ONSConfigInput(null, callbackStub));
+                mONSConfigInputHashMap.put(SYSTEM_APP_CONFIG_NAME, null);
                 if (mONSConfigInputHashMap.get(CARRIER_APP_CONFIG_NAME) == null) {
                     mProfileSelector.stopProfileSelection();
-                    sendUpdateNetworksCallbackHelper(callbackStub,
-                            TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SUCCESS);
                 }
+                sendUpdateNetworksCallbackHelper(callbackStub,
+                        TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SUCCESS);
             }
         } finally {
             Binder.restoreCallingIdentity(identity);
