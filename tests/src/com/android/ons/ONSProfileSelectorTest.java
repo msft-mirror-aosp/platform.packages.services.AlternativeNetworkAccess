@@ -223,8 +223,6 @@ public class ONSProfileSelectorTest extends ONSBaseTest {
         Intent callbackIntent = new Intent(MyONSProfileSelector.ACTION_SUB_SWITCH);
         callbackIntent.putExtra("sequenceId", 1);
         callbackIntent.putExtra("subId", 5);
-        mONSProfileSelector.mProfileSelectorBroadcastReceiverCpy.onReceive(mContext,
-                callbackIntent);
         waitUntilReady();
         assertEquals(TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SUCCESS, mResult);
         assertTrue(mReady);
