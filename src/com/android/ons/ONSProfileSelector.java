@@ -142,10 +142,14 @@ public class ONSProfileSelector {
                 private void handleNetworkScanResult(int subId) {
                     /* if subscription is already active, just enable modem */
                     if (mSubscriptionManager.isActiveSubId(subId)) {
-                        enableModem(subId, true);
-                        mProfileSelectionCallback.onProfileSelectionDone();
-                        sendUpdateNetworksCallbackHelper(mNetworkScanCallback,
+                        if (enableModem(subId, true)) {
+                            sendUpdateNetworksCallbackHelper(mNetworkScanCallback,
                                 TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SUCCESS);
+                        } else {
+                            sendUpdateNetworksCallbackHelper(mNetworkScanCallback,
+                                TelephonyManager.UPDATE_AVAILABLE_NETWORKS_ABORTED);
+                        }
+                        mProfileSelectionCallback.onProfileSelectionDone();
                         mNetworkScanCallback = null;
                     } else {
                         logDebug("switch to sub:" + subId);
@@ -328,10 +332,14 @@ public class ONSProfileSelector {
     }
 
     private void onSubSwitchComplete(int subId) {
-        enableModem(subId, true);
-        mProfileSelectionCallback.onProfileSelectionDone();
-        sendUpdateNetworksCallbackHelper(mNetworkScanCallback,
+        if (enableModem(subId, true)) {
+            sendUpdateNetworksCallbackHelper(mNetworkScanCallback,
                 TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SUCCESS);
+        } else {
+            sendUpdateNetworksCallbackHelper(mNetworkScanCallback,
+                TelephonyManager.UPDATE_AVAILABLE_NETWORKS_ABORTED);
+        }
+        mProfileSelectionCallback.onProfileSelectionDone();
     }
 
     private void updateToken() {
@@ -428,10 +436,14 @@ public class ONSProfileSelector {
                     mNetworkScanCallback = callbackStub;
                     switchToSubscription(filteredAvailableNetworks.get(0).getSubId());
                 } else {
-                    enableModem(filteredAvailableNetworks.get(0).getSubId(), true);
-                    mProfileSelectionCallback.onProfileSelectionDone();
-                    sendUpdateNetworksCallbackHelper(callbackStub,
+                    if (enableModem(filteredAvailableNetworks.get(0).getSubId(), true)) {
+                        sendUpdateNetworksCallbackHelper(mNetworkScanCallback,
                             TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SUCCESS);
+                    } else {
+                        sendUpdateNetworksCallbackHelper(mNetworkScanCallback,
+                            TelephonyManager.UPDATE_AVAILABLE_NETWORKS_ABORTED);
+                    }
+                    mProfileSelectionCallback.onProfileSelectionDone();
                 }
             } else {
                 mNetworkScanCallback = callbackStub;
@@ -493,24 +505,33 @@ public class ONSProfileSelector {
         return SubscriptionManager.INVALID_SUBSCRIPTION_ID;
     }
 
-    private void disableOpportunisticModem() {
+    private void disableOpportunisticModem(IUpdateAvailableNetworksCallback callbackStub) {
         int subId = getActiveOpportunisticSubId();
-        if (subId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
-            enableModem(subId, false);
+        if (subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+            sendUpdateNetworksCallbackHelper(callbackStub,
+                TelephonyManager.UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS);
+            return;
+        }
+        if (enableModem(subId, false)) {
+            sendUpdateNetworksCallbackHelper(callbackStub,
+                TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SUCCESS);
+        } else {
+            sendUpdateNetworksCallbackHelper(callbackStub,
+                TelephonyManager.UPDATE_AVAILABLE_NETWORKS_ABORTED);
         }
     }
 
-    private void enableModem(int subId, boolean enable) {
+    private boolean enableModem(int subId, boolean enable) {
         if (subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
-            return;
+            return false;
         }
 
         int phoneId = SubscriptionManager.getPhoneId(subId);
         if (mSubscriptionBoundTelephonyManager.isModemEnabledForSlot(phoneId) == enable) {
-            return;
+            return true;
         }
 
-        mSubscriptionBoundTelephonyManager.enableModemForSlot(phoneId, enable);
+        return mSubscriptionBoundTelephonyManager.enableModemForSlot(phoneId, enable);
     }
 
     private void stopProfileScanningPrecedure() {
@@ -622,10 +643,10 @@ public class ONSProfileSelector {
     /**
      * stop profile selection procedure
      */
-    public void stopProfileSelection() {
+    public void stopProfileSelection(IUpdateAvailableNetworksCallback callbackStub) {
         stopProfileScanningPrecedure();
         logDebug("stopProfileSelection");
-        disableOpportunisticModem();
+        disableOpportunisticModem(callbackStub);
     }
 
     @VisibleForTesting
