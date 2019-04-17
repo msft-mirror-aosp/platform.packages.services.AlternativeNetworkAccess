@@ -380,6 +380,31 @@ public class ONSProfileSelector {
         return new HashSet<>(availableNetworks1).equals(new HashSet<>(availableNetworks2));
     }
 
+    private boolean isPrimaryActiveOnOpportunisticSlot(
+            ArrayList<AvailableNetworkInfo> availableNetworks) {
+        /* Check if any of the available network is an embedded profile. if none are embedded,
+         * return false
+         * Todo <b/130535071> */
+        if (!isOpportunisticSubEmbedded(availableNetworks)) {
+            return false;
+        }
+
+        List<SubscriptionInfo> subscriptionInfos =
+            mSubscriptionManager.getActiveSubscriptionInfoList(false);
+        if (subscriptionInfos == null) {
+            return false;
+        }
+
+        /* if there is a primary subscription active on the eSIM, return true */
+        for (SubscriptionInfo subscriptionInfo : subscriptionInfos) {
+            if (!subscriptionInfo.isOpportunistic() && subscriptionInfo.isEmbedded()) {
+                return true;
+            }
+        }
+
+        return false;
+
+    }
     private void sendUpdateNetworksCallbackHelper(IUpdateAvailableNetworksCallback callback,
             int result) {
         if (callback == null) {
@@ -404,6 +429,15 @@ public class ONSProfileSelector {
                     TelephonyManager.UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS);
             return;
         }
+
+        /* if primary subscription is active on opportunistic slot, do not switch out the same. */
+        if (isPrimaryActiveOnOpportunisticSlot(availableNetworks)) {
+            logDebug("primary subscription active on opportunistic sub");
+            sendUpdateNetworksCallbackHelper(callbackStub,
+                TelephonyManager.UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS);
+            return;
+        }
+
         if (isSame(availableNetworks, mAvailableNetworkInfos)) {
             return;
         }
@@ -479,6 +513,22 @@ public class ONSProfileSelector {
         }
 
         return SubscriptionManager.INVALID_SUBSCRIPTION_ID;
+    }
+
+    private boolean isOpportunisticSubEmbedded(
+            ArrayList<AvailableNetworkInfo> availableNetworks) {
+        List<SubscriptionInfo> subscriptionInfos =
+            mSubscriptionManager.getOpportunisticSubscriptions();
+        for (AvailableNetworkInfo availableNetworkInfo : availableNetworks) {
+            for (SubscriptionInfo subscriptionInfo : subscriptionInfos) {
+                if (subscriptionInfo.getSubscriptionId() == availableNetworkInfo.getSubId()
+                        && subscriptionInfo.isEmbedded()) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private int getActiveOpportunisticSubId() {
