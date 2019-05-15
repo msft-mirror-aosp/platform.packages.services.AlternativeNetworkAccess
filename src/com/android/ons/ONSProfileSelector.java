@@ -496,6 +496,10 @@ public class ONSProfileSelector {
     private boolean isActiveSub(int subId) {
         List<SubscriptionInfo> subscriptionInfos =
                 mSubscriptionManager.getActiveSubscriptionInfoList(false);
+        if (subscriptionInfos == null) {
+            return false;
+        }
+
         for (SubscriptionInfo subscriptionInfo : subscriptionInfos) {
             if (subscriptionInfo.getSubscriptionId() == subId) {
                 return true;
@@ -531,6 +535,9 @@ public class ONSProfileSelector {
             ArrayList<AvailableNetworkInfo> availableNetworks) {
         List<SubscriptionInfo> subscriptionInfos =
             mSubscriptionManager.getOpportunisticSubscriptions();
+        if (subscriptionInfos == null) {
+            return false;
+        }
         for (AvailableNetworkInfo availableNetworkInfo : availableNetworks) {
             for (SubscriptionInfo subscriptionInfo : subscriptionInfos) {
                 if (subscriptionInfo.getSubscriptionId() == availableNetworkInfo.getSubId()
@@ -546,6 +553,9 @@ public class ONSProfileSelector {
     private int getActiveOpportunisticSubId() {
         List<SubscriptionInfo> subscriptionInfos =
             mSubscriptionManager.getActiveSubscriptionInfoList(false);
+        if (subscriptionInfos == null) {
+            return SubscriptionManager.INVALID_SUBSCRIPTION_ID;
+        }
         for (SubscriptionInfo subscriptionInfo : subscriptionInfos) {
             if (subscriptionInfo.isOpportunistic()) {
                 return subscriptionInfo.getSubscriptionId();
