@@ -92,6 +92,7 @@ public class ONSProfileSelector {
     protected List<SubscriptionInfo> mOppSubscriptionInfos;
     private ONSProfileSelectionCallback mProfileSelectionCallback;
     private int mSequenceId;
+    private int mSubId;
     private int mCurrentDataSubId = SubscriptionManager.INVALID_SUBSCRIPTION_ID;
     private ArrayList<AvailableNetworkInfo> mAvailableNetworkInfos;
     private IUpdateAvailableNetworksCallback mNetworkScanCallback;
@@ -310,7 +311,7 @@ public class ONSProfileSelector {
         updateToken();
         callbackIntent.putExtra("sequenceId", mSequenceId);
         callbackIntent.putExtra("subId", subId);
-
+        mSubId = subId;
         PendingIntent replyIntent = PendingIntent.getService(mContext,
                 1, callbackIntent,
                 Intent.FILL_IN_ACTION);
@@ -323,15 +324,16 @@ public class ONSProfileSelector {
                 SubscriptionManager.INVALID_SUBSCRIPTION_ID);
         logDebug("ACTION_SUB_SWITCH sequenceId: " + sequenceId
                 + " mSequenceId: " + mSequenceId);
-        if (sequenceId != mSequenceId) {
-            return;
-        }
-
         Message message = Message.obtain(mHandler, MSG_SUB_SWITCH_COMPLETE, subId);
         message.sendToTarget();
     }
 
     private void onSubSwitchComplete(int subId) {
+        /* Ignore if this is callback for an older request */
+        if (mSubId != subId) {
+            return;
+        }
+
         if (enableModem(subId, true)) {
             sendUpdateNetworksCallbackHelper(mNetworkScanCallback,
                 TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SUCCESS);
@@ -471,10 +473,10 @@ public class ONSProfileSelector {
                     switchToSubscription(filteredAvailableNetworks.get(0).getSubId());
                 } else {
                     if (enableModem(filteredAvailableNetworks.get(0).getSubId(), true)) {
-                        sendUpdateNetworksCallbackHelper(mNetworkScanCallback,
+                        sendUpdateNetworksCallbackHelper(callbackStub,
                             TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SUCCESS);
                     } else {
-                        sendUpdateNetworksCallbackHelper(mNetworkScanCallback,
+                        sendUpdateNetworksCallbackHelper(callbackStub,
                             TelephonyManager.UPDATE_AVAILABLE_NETWORKS_ABORTED);
                     }
                     mProfileSelectionCallback.onProfileSelectionDone();
@@ -723,6 +725,7 @@ public class ONSProfileSelector {
     protected void init(Context c, ONSProfileSelectionCallback profileSelectionCallback) {
         mContext = c;
         mSequenceId = START_SEQUENCE_ID;
+        mSubId = SubscriptionManager.INVALID_SUBSCRIPTION_ID;
         mProfileSelectionCallback = profileSelectionCallback;
         mTelephonyManager = (TelephonyManager)
                 mContext.getSystemService(Context.TELEPHONY_SERVICE);
