@@ -323,7 +323,9 @@ public class ONSProfileSelector {
         int subId = intent.getIntExtra("subId",
                 SubscriptionManager.INVALID_SUBSCRIPTION_ID);
         logDebug("ACTION_SUB_SWITCH sequenceId: " + sequenceId
-                + " mSequenceId: " + mSequenceId);
+                + " mSequenceId: " + mSequenceId
+                + " mSubId: " + mSubId
+                + " subId: " + subId);
         Message message = Message.obtain(mHandler, MSG_SUB_SWITCH_COMPLETE, subId);
         message.sendToTarget();
     }
@@ -590,6 +592,7 @@ public class ONSProfileSelector {
 
         int phoneId = SubscriptionManager.getPhoneId(subId);
         if (mSubscriptionBoundTelephonyManager.isModemEnabledForSlot(phoneId) == enable) {
+            logDebug("modem is already enabled ");
             return true;
         }
 
