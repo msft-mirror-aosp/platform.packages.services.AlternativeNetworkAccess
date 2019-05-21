@@ -134,7 +134,7 @@ public class OpportunisticNetworkService extends Service {
 
         logDebug("Carrier subscription is not available, removing entry");
         mONSConfigInputHashMap.put(CARRIER_APP_CONFIG_NAME, null);
-        if (mONSConfigInputHashMap.get(SYSTEM_APP_CONFIG_NAME).getAvailableNetworkInfos() != null) {
+        if (mONSConfigInputHashMap.get(SYSTEM_APP_CONFIG_NAME) != null) {
             mProfileSelector.startProfileSelection(
                     mONSConfigInputHashMap.get(SYSTEM_APP_CONFIG_NAME).getAvailableNetworkInfos(),
                     mONSConfigInputHashMap.get(
@@ -351,12 +351,14 @@ public class OpportunisticNetworkService extends Service {
                 log("Carrier app should not pass more than one subscription");
                 sendUpdateNetworksCallbackHelper(callbackStub,
                         TelephonyManager.UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS);
+                return;
             }
 
             if (!mProfileSelector.hasOpprotunisticSub(availableNetworks)) {
                 log("No opportunistic subscriptions received");
                 sendUpdateNetworksCallbackHelper(callbackStub,
                         TelephonyManager.UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS);
+                return;
             }
             TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(
                     availableNetworks.get(0).getSubId(), "updateAvailableNetworks");
@@ -367,6 +369,7 @@ public class OpportunisticNetworkService extends Service {
                 log("No carrier privelege for opportunistic subscription");
                 sendUpdateNetworksCallbackHelper(callbackStub,
                         TelephonyManager.UPDATE_AVAILABLE_NETWORKS_NO_CARRIER_PRIVILEGE);
+                return;
             }
             final long identity = Binder.clearCallingIdentity();
             try {
@@ -427,6 +430,7 @@ public class OpportunisticNetworkService extends Service {
                     log("No opportunistic subscriptions received");
                     sendUpdateNetworksCallbackHelper(callbackStub,
                             TelephonyManager.UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS);
+                    return;
                 }
                 mONSConfigInputHashMap.put(SYSTEM_APP_CONFIG_NAME,
                         new ONSConfigInput(availableNetworks, callbackStub));
@@ -437,13 +441,12 @@ public class OpportunisticNetworkService extends Service {
                 }
             } else {
                 /* reporting unavailability */
-                mONSConfigInputHashMap.put(
-                        SYSTEM_APP_CONFIG_NAME, new ONSConfigInput(null, callbackStub));
+                mONSConfigInputHashMap.put(SYSTEM_APP_CONFIG_NAME, null);
                 if (mONSConfigInputHashMap.get(CARRIER_APP_CONFIG_NAME) == null) {
                     mProfileSelector.stopProfileSelection();
-                    sendUpdateNetworksCallbackHelper(callbackStub,
-                            TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SUCCESS);
                 }
+                sendUpdateNetworksCallbackHelper(callbackStub,
+                        TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SUCCESS);
             }
         } finally {
             Binder.restoreCallingIdentity(identity);
