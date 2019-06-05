@@ -385,7 +385,9 @@ public class OpportunisticNetworkService extends Service {
             }
 
             for (AvailableNetworkInfo availableNetworkInfo : availableNetworks) {
-                if (mSubscriptionManager.isActiveSubId(availableNetworkInfo.getSubId())) {
+                if (Binder.withCleanCallingIdentity(
+                            () -> mSubscriptionManager.isActiveSubId(
+                                    availableNetworkInfo.getSubId()))) {
                     TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(
                         availableNetworkInfo.getSubId(), "updateAvailableNetworks");
                 } else {
