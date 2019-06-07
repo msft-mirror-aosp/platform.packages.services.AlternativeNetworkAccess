@@ -83,7 +83,7 @@ public class ONSProfileSelectorTest extends ONSBaseTest {
             super.init(c, aNSProfileSelectionCallback);
             this.mSubscriptionManager = ONSProfileSelectorTest.this.mSubscriptionManager;
             mProfileChngLstnrCpy = mProfileChangeListener;
-            mProfileSelectorBroadcastReceiverCpy = mProfileSelectorBroadcastReceiver;
+            mProfileSelectorBroadcastReceiverCpy = null;
             mNetworkAvailableCallBackCpy = mNetworkAvailableCallBack;
             mNetworkScanCtlr = mONSNetworkScanCtlr;
         }

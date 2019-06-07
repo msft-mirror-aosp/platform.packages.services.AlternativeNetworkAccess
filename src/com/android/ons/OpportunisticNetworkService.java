@@ -317,6 +317,29 @@ public class OpportunisticNetworkService extends Service {
     }
 
     @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        if (intent == null) {
+            return START_STICKY;
+        }
+
+        String action = intent.getAction();
+        if (action == null) {
+            return START_STICKY;
+        }
+
+        switch (action) {
+            case ONSProfileSelector.ACTION_SUB_SWITCH: {
+                if (mProfileSelector != null) {
+                    mProfileSelector.onSubSwitchComplete(intent);
+                }
+                break;
+            }
+        }
+
+        return START_STICKY;
+    }
+
+    @Override
     public void onDestroy() {
         super.onDestroy();
         log("Destroyed Successfully...");
