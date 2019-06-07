@@ -66,7 +66,6 @@ public class ONSNetworkScanCtlr {
     private TelephonyManager mTelephonyManager;
     private CarrierConfigManager configManager;
     private int mRsrpEntryThreshold;
-    private int mRssnrEntryThreshold;
     @VisibleForTesting
     protected NetworkAvailableCallBack mNetworkAvailableCallBack;
     HandlerThread mThread;
@@ -149,7 +148,6 @@ public class ONSNetworkScanCtlr {
                     if (cellInfo instanceof CellInfoLte) {
                         int rsrp = ((CellInfoLte) cellInfo).getCellSignalStrength().getRsrp();
                         logDebug("cell info rsrp: " + rsrp);
-                        // Todo(b/122917491)
                         if (rsrp >= mRsrpEntryThreshold) {
                             filteredResults.add(cellInfo);
                         }
@@ -279,12 +277,10 @@ public class ONSNetworkScanCtlr {
             /* Need to stop current scan if we already have one */
             stopNetworkScan();
 
+            /* user lower threshold to enable modem stack */
             mRsrpEntryThreshold =
                 getIntCarrierConfig(
-                    CarrierConfigManager.KEY_OPPORTUNISTIC_NETWORK_ENTRY_THRESHOLD_RSRP_INT);
-            mRssnrEntryThreshold =
-                getIntCarrierConfig(
-                    CarrierConfigManager.KEY_OPPORTUNISTIC_NETWORK_ENTRY_THRESHOLD_RSSNR_INT);
+                    CarrierConfigManager.KEY_OPPORTUNISTIC_NETWORK_EXIT_THRESHOLD_RSRP_INT);
 
             /* start new scan */
             networkScan = mTelephonyManager.requestNetworkScan(networkScanRequest,
