@@ -51,6 +51,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Profile selector class which will select the right profile based upon
@@ -620,7 +621,10 @@ public class ONSProfileSelector {
     @VisibleForTesting
     protected void updateOpportunisticSubscriptions() {
         synchronized (mLock) {
-            mOppSubscriptionInfos = mSubscriptionManager.getOpportunisticSubscriptions();
+            mOppSubscriptionInfos = mSubscriptionManager
+                .getOpportunisticSubscriptions().stream()
+                .filter(subInfo -> subInfo.isGroupDisabled() != true)
+                .collect(Collectors.toList());
         }
     }
 
