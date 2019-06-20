@@ -591,10 +591,12 @@ public class ONSProfileSelector {
         }
 
         int phoneId = SubscriptionManager.getPhoneId(subId);
+        /*  Todo: b/135067156
+         *  Reenable this code once 135067156 is fixed
         if (mSubscriptionBoundTelephonyManager.isModemEnabledForSlot(phoneId) == enable) {
             logDebug("modem is already enabled ");
             return true;
-        }
+        } */
 
         return mSubscriptionBoundTelephonyManager.enableModemForSlot(phoneId, enable);
     }
