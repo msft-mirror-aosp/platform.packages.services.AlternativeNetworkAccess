@@ -25,6 +25,7 @@ import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.telephony.AvailableNetworkInfo;
 import android.telephony.SubscriptionInfo;
+import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.util.Log;
 
@@ -37,6 +38,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import static org.mockito.Mockito.any;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -147,6 +149,54 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
         mOpportunisticNetworkService.handleSimStateChange();
         waitForMs(500);
         assertEquals(TelephonyManager.UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS, mResult);
+    }
+
+    @Test
+    public void testSystemPreferredDataWhileCarrierAppIsActive() {
+        mResult = -1;
+        ArrayList<String> mccMncs = new ArrayList<>();
+        mccMncs.add("310210");
+        AvailableNetworkInfo availableNetworkInfo = new AvailableNetworkInfo(1, 1, mccMncs,
+            new ArrayList<Integer>());
+        ArrayList<AvailableNetworkInfo> availableNetworkInfos =
+            new ArrayList<AvailableNetworkInfo>();
+        availableNetworkInfos.add(availableNetworkInfo);
+        IUpdateAvailableNetworksCallback mCallback = new IUpdateAvailableNetworksCallback.Stub() {
+            @Override
+            public void onComplete(int result) {
+                mResult = result;
+                Log.d(TAG, "result: " + result);
+            }
+        };
+        ONSConfigInput onsConfigInput = new ONSConfigInput(availableNetworkInfos, mCallback);
+        onsConfigInput.setPrimarySub(1);
+        onsConfigInput.setPreferredDataSub(availableNetworkInfos.get(0).getSubId());
+        ArrayList<SubscriptionInfo> subscriptionInfos = new ArrayList<SubscriptionInfo>();
+
+        doReturn(subscriptionInfos).when(mSubscriptionManager).getActiveSubscriptionInfoList(false);
+        doReturn(onsConfigInput).when(mockONSConfigInputHashMap).get(CARRIER_APP_CONFIG_NAME);
+        mOpportunisticNetworkService.mIsEnabled = true;
+        mOpportunisticNetworkService.mONSConfigInputHashMap = mockONSConfigInputHashMap;
+
+        mResult = -1;
+        ISetOpportunisticDataCallback callbackStub = new ISetOpportunisticDataCallback.Stub() {
+            @Override
+            public void onComplete(int result) {
+                Log.d(TAG, "callbackStub, mResult end:" + result);
+                mResult = result;
+            }
+        };
+
+        try {
+            IOns onsBinder = (IOns)mOpportunisticNetworkService.onBind(null);
+            onsBinder.setPreferredDataSubscriptionId(
+                    SubscriptionManager.DEFAULT_SUBSCRIPTION_ID, false, callbackStub,
+                    pkgForDebug);
+        } catch (RemoteException ex) {
+            Log.e(TAG, "RemoteException", ex);
+        }
+        waitForMs(50);
+        assertEquals(TelephonyManager.SET_OPPORTUNISTIC_SUB_VALIDATION_FAILED, mResult);
     }
 
     @Test
