@@ -233,7 +233,15 @@ public class OpportunisticNetworkService extends Service {
                     TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(subId,
                             "setPreferredDataSubscriptionId");
                 }
+            } else {
+                if (mONSConfigInputHashMap.get(CARRIER_APP_CONFIG_NAME) != null) {
+                    sendSetOpptCallbackHelper(callbackStub,
+                        TelephonyManager.SET_OPPORTUNISTIC_SUB_VALIDATION_FAILED);
+                    return;
+                }
             }
+
+
             final long identity = Binder.clearCallingIdentity();
             try {
                 mProfileSelector.selectProfileForData(subId, needValidation, callbackStub);
@@ -448,6 +456,15 @@ public class OpportunisticNetworkService extends Service {
     }
 
     private void sendUpdateNetworksCallbackHelper(IUpdateAvailableNetworksCallback callback, int result) {
+        if (callback == null) return;
+        try {
+            callback.onComplete(result);
+        } catch (RemoteException exception) {
+            log("RemoteException " + exception);
+        }
+    }
+
+    private void sendSetOpptCallbackHelper(ISetOpportunisticDataCallback callback, int result) {
         if (callback == null) return;
         try {
             callback.onComplete(result);
