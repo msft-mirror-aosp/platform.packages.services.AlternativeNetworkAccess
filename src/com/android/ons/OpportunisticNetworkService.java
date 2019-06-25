@@ -143,9 +143,6 @@ public class OpportunisticNetworkService extends Service {
                     mONSConfigInputHashMap.get(SYSTEM_APP_CONFIG_NAME).getAvailableNetworkInfos(),
                     mONSConfigInputHashMap.get(
                             SYSTEM_APP_CONFIG_NAME).getAvailableNetworkCallback());
-        } else {
-            mProfileSelector.stopProfileSelection(
-                    carrierAppConfigInput.getAvailableNetworkCallback());
         }
     }
 
