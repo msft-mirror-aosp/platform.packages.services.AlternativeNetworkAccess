@@ -165,6 +165,7 @@ public class ONSProfileSelector {
             new SubscriptionManager.OnOpportunisticSubscriptionsChangedListener() {
                 @Override
                 public void onOpportunisticSubscriptionsChanged() {
+                    logDebug("onOpportunisticSubscriptionsChanged.");
                     mHandler.sendEmptyMessage(MSG_PROFILE_UPDATE);
                 }
             };
@@ -586,7 +587,7 @@ public class ONSProfileSelector {
     }
 
     private boolean enableModem(int subId, boolean enable) {
-        if (subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+        if (!mSubscriptionManager.isActiveSubId(subId)) {
             return false;
         }
 
@@ -724,6 +725,24 @@ public class ONSProfileSelector {
         }
     }
 
+    private void enableModemStackForNonOpportunisticSlots() {
+        int phoneCount = mTelephonyManager.getPhoneCount();
+        // Do nothing in single SIM mode.
+        if (phoneCount < 2) return;
+
+        for (int i = 0; i < phoneCount; i++) {
+            boolean hasActiveOpptProfile = false;
+            for (SubscriptionInfo info : mOppSubscriptionInfos) {
+                if (info.getSimSlotIndex() == i) {
+                    hasActiveOpptProfile = true;
+                }
+            }
+            // If the slot doesn't have active opportunistic profile anymore, it's back to
+            // DSDS use-case. Make sure the the modem stack is enabled.
+            if (!hasActiveOpptProfile) mTelephonyManager.enableModemForSlot(i, true);
+        }
+    }
+
     @VisibleForTesting
     protected void init(Context c, ONSProfileSelectionCallback profileSelectionCallback) {
         mContext = c;
@@ -748,6 +767,7 @@ public class ONSProfileSelector {
                     case MSG_PROFILE_UPDATE:
                         synchronized (mLock) {
                             updateOpportunisticSubscriptions();
+                            enableModemStackForNonOpportunisticSlots();
                         }
                         break;
                     case MSG_START_PROFILE_SELECTION:
