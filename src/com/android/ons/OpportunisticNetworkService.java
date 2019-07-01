@@ -37,8 +37,8 @@ import android.telephony.TelephonyManager;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.IOns;
-import com.android.internal.telephony.IUpdateAvailableNetworksCallback;
 import com.android.internal.telephony.ISetOpportunisticDataCallback;
+import com.android.internal.telephony.IUpdateAvailableNetworksCallback;
 import com.android.internal.telephony.TelephonyIntents;
 import com.android.internal.telephony.TelephonyPermissions;
 
@@ -445,8 +445,7 @@ public class OpportunisticNetworkService extends Service {
         }
     }
 
-    private void sendUpdateNetworksCallbackHelper(IUpdateAvailableNetworksCallback callback,
-            int result) {
+    private void sendUpdateNetworksCallbackHelper(IUpdateAvailableNetworksCallback callback, int result) {
         if (callback == null) return;
         try {
             callback.onComplete(result);
