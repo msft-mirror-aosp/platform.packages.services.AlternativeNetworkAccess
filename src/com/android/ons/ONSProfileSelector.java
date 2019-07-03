@@ -81,7 +81,8 @@ public class ONSProfileSelector {
 
     @VisibleForTesting
     protected TelephonyManager mTelephonyManager;
-    private TelephonyManager mSubscriptionBoundTelephonyManager;
+    @VisibleForTesting
+    protected TelephonyManager mSubscriptionBoundTelephonyManager;
 
     @VisibleForTesting
     protected ONSNetworkScanCtlr mNetworkScanCtlr;
