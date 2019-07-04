@@ -17,6 +17,7 @@ package com.android.ons;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import android.content.Intent;
@@ -148,7 +149,7 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
         mOpportunisticNetworkService.mONSConfigInputHashMap = mockONSConfigInputHashMap;
         mOpportunisticNetworkService.handleSimStateChange();
         waitForMs(500);
-        assertEquals(TelephonyManager.UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS, mResult);
+        verify(mockONSConfigInputHashMap,times(1)).get(SYSTEM_APP_CONFIG_NAME);
     }
 
     @Test

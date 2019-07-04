@@ -49,6 +49,8 @@ public class ONSProfileSelectorTest extends ONSBaseTest {
     private int mResult;
     @Mock
     ONSNetworkScanCtlr mONSNetworkScanCtlr;
+    @Mock
+    TelephonyManager mSubscriptionBoundTelephonyManager;
     private Looper mLooper;
     private static final String TAG = "ONSProfileSelectorTest";
 
@@ -82,6 +84,8 @@ public class ONSProfileSelectorTest extends ONSBaseTest {
                 MyONSProfileSelector.ONSProfileSelectionCallback aNSProfileSelectionCallback) {
             super.init(c, aNSProfileSelectionCallback);
             this.mSubscriptionManager = ONSProfileSelectorTest.this.mSubscriptionManager;
+            this.mSubscriptionBoundTelephonyManager =
+                ONSProfileSelectorTest.this.mSubscriptionBoundTelephonyManager;
             mProfileChngLstnrCpy = mProfileChangeListener;
             mProfileSelectorBroadcastReceiverCpy = null;
             mNetworkAvailableCallBackCpy = mNetworkAvailableCallBack;
@@ -196,6 +200,8 @@ public class ONSProfileSelectorTest extends ONSBaseTest {
                 Looper.prepare();
                 doReturn(subscriptionInfoList).when(mSubscriptionManager).getOpportunisticSubscriptions();
                 doReturn(true).when(mSubscriptionManager).isActiveSubId(anyInt());
+                doReturn(true).when(mSubscriptionBoundTelephonyManager).enableModemForSlot(
+                    anyInt(), anyBoolean());
                 mONSProfileSelector = new MyONSProfileSelector(mContext,
                         new MyONSProfileSelector.ONSProfileSelectionCallback() {
                     public void onProfileSelectionDone() {
