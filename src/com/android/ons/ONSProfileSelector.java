@@ -117,7 +117,9 @@ public class ONSProfileSelector {
                     if (subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
                         sendUpdateNetworksCallbackHelper(mNetworkScanCallback,
                                 TelephonyManager.UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS);
-                        mNetworkScanCallback = null;
+                        synchronized (mLock) {
+                            mNetworkScanCallback = null;
+                        }
                         return;
                     }
 
@@ -129,14 +131,16 @@ public class ONSProfileSelector {
                 @Override
                 public void onError(int error) {
                     log("Network scan failed with error " + error);
-                    if (mIsEnabled && mAvailableNetworkInfos != null
+                    synchronized (mLock) {
+                        if (mIsEnabled && mAvailableNetworkInfos != null
                             && mAvailableNetworkInfos.size() > 0) {
-                        handleNetworkScanResult(mAvailableNetworkInfos.get(0).getSubId());
-                    } else {
-                        if (mNetworkScanCallback != null) {
-                            sendUpdateNetworksCallbackHelper(mNetworkScanCallback,
+                            handleNetworkScanResult(mAvailableNetworkInfos.get(0).getSubId());
+                        } else {
+                            if (mNetworkScanCallback != null) {
+                                sendUpdateNetworksCallbackHelper(mNetworkScanCallback,
                                     TelephonyManager.UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS);
-                            mNetworkScanCallback = null;
+                                mNetworkScanCallback = null;
+                            }
                         }
                     }
                 }
@@ -152,7 +156,10 @@ public class ONSProfileSelector {
                                 TelephonyManager.UPDATE_AVAILABLE_NETWORKS_ABORTED);
                         }
                         mProfileSelectionCallback.onProfileSelectionDone();
-                        mNetworkScanCallback = null;
+                        synchronized (mLock) {
+                            mNetworkScanCallback = null;
+                            mAvailableNetworkInfos = null;
+                        }
                     } else {
                         logDebug("switch to sub:" + subId);
                         switchToSubscription(subId);
@@ -247,13 +254,17 @@ public class ONSProfileSelector {
 
     private int getSubIdUsingAvailableNetworks(String mcc, String mnc, int priorityLevel) {
         String mccMnc = mcc + mnc;
-        for (AvailableNetworkInfo availableNetworkInfo : mAvailableNetworkInfos) {
-            if (availableNetworkInfo.getPriority() != priorityLevel) {
-                continue;
-            }
-            for (String availableMccMnc : availableNetworkInfo.getMccMncs()) {
-                if (TextUtils.equals(availableMccMnc, mccMnc)) {
-                    return availableNetworkInfo.getSubId();
+        synchronized (mLock) {
+            if (mAvailableNetworkInfos != null) {
+                for (AvailableNetworkInfo availableNetworkInfo : mAvailableNetworkInfos) {
+                    if (availableNetworkInfo.getPriority() != priorityLevel) {
+                        continue;
+                    }
+                    for (String availableMccMnc : availableNetworkInfo.getMccMncs()) {
+                        if (TextUtils.equals(availableMccMnc, mccMnc)) {
+                            return availableNetworkInfo.getSubId();
+                        }
+                    }
                 }
             }
         }
@@ -315,8 +326,7 @@ public class ONSProfileSelector {
         callbackIntent.putExtra("subId", subId);
         mSubId = subId;
         PendingIntent replyIntent = PendingIntent.getService(mContext,
-                1, callbackIntent,
-                Intent.FILL_IN_ACTION);
+                1, callbackIntent, PendingIntent.FLAG_ONE_SHOT);
         mSubscriptionManager.switchToSubscription(subId, replyIntent);
     }
 
@@ -346,6 +356,8 @@ public class ONSProfileSelector {
                 TelephonyManager.UPDATE_AVAILABLE_NETWORKS_ABORTED);
         }
         mProfileSelectionCallback.onProfileSelectionDone();
+        mNetworkScanCallback = null;
+        mAvailableNetworkInfos = null;
     }
 
     private void updateToken() {
@@ -453,6 +465,13 @@ public class ONSProfileSelector {
         }
 
         if (isSame(availableNetworks, mAvailableNetworkInfos)) {
+            logDebug("received duplicate requests");
+            /* If we receive same request more than once, send abort response for earlier one
+               and send actual response for the latest callback.
+            */
+            sendUpdateNetworksCallbackHelper(mNetworkScanCallback,
+                TelephonyManager.UPDATE_AVAILABLE_NETWORKS_ABORTED);
+            mNetworkScanCallback = callbackStub;
             return;
         }
 
@@ -484,6 +503,7 @@ public class ONSProfileSelector {
                             TelephonyManager.UPDATE_AVAILABLE_NETWORKS_ABORTED);
                     }
                     mProfileSelectionCallback.onProfileSelectionDone();
+                    mAvailableNetworkInfos = null;
                 }
             } else {
                 mNetworkScanCallback = callbackStub;
@@ -604,13 +624,14 @@ public class ONSProfileSelector {
     }
 
     private void stopProfileScanningPrecedure() {
-        if (mNetworkScanCallback != null) {
-            sendUpdateNetworksCallbackHelper(mNetworkScanCallback,
-                    TelephonyManager.UPDATE_AVAILABLE_NETWORKS_ABORTED);
-            mNetworkScanCallback = null;
-        }
-        mNetworkScanCtlr.stopNetworkScan();
         synchronized (mLock) {
+            if (mNetworkScanCallback != null) {
+                sendUpdateNetworksCallbackHelper(mNetworkScanCallback,
+                        TelephonyManager.UPDATE_AVAILABLE_NETWORKS_ABORTED);
+                mNetworkScanCallback = null;
+            }
+            mNetworkScanCtlr.stopNetworkScan();
+
             mAvailableNetworkInfos = null;
             mIsEnabled = false;
         }
