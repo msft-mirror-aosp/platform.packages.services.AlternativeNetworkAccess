@@ -363,7 +363,8 @@ public class OpportunisticNetworkService extends Service {
         mContext = context;
         mTelephonyManager = TelephonyManager.from(mContext);
         mProfileSelector = new ONSProfileSelector(mContext, mProfileSelectionCallback);
-        mSharedPref = mContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        mSharedPref = mContext.createDeviceProtectedStorageContext().getSharedPreferences(
+                PREF_NAME, Context.MODE_PRIVATE);
         mSubscriptionManager = (SubscriptionManager) mContext.getSystemService(
                 Context.TELEPHONY_SUBSCRIPTION_SERVICE);
         mONSConfigInputHashMap = new HashMap<String, ONSConfigInput>();
