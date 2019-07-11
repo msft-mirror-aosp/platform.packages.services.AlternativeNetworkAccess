@@ -1,4 +1,4 @@
-/*
+  /*
  * Copyright (C) 2019 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -148,7 +148,7 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
         mOpportunisticNetworkService.mIsEnabled = true;
         mOpportunisticNetworkService.mONSConfigInputHashMap = mockONSConfigInputHashMap;
         mOpportunisticNetworkService.handleSimStateChange();
-        waitForMs(500);
+        waitForMs(50);
         verify(mockONSConfigInputHashMap,times(1)).get(SYSTEM_APP_CONFIG_NAME);
     }
 
