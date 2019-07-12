@@ -718,7 +718,6 @@ public class ONSProfileSelector {
                 return;
             }
             mCurrentDataSubId = subId;
-            sendSetOpptCallbackHelper(callbackStub, TelephonyManager.SET_OPPORTUNISTIC_SUB_SUCCESS);
         } else {
             log("Inactive sub passed for preferred data " + subId);
             sendSetOpptCallbackHelper(callbackStub,
