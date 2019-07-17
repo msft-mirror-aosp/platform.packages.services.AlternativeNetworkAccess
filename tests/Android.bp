@@ -22,7 +22,7 @@ android_test {
         "android.test.base",
     ],
     static_libs: [
-        "android-support-test",
+        "androidx.test.rules",
         "mockito-target",
         "platform-test-annotations",
     ],

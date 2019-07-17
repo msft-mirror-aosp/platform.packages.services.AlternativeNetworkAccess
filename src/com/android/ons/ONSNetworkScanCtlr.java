@@ -33,11 +33,13 @@ import android.telephony.Rlog;
 import android.telephony.SubscriptionInfo;
 import android.telephony.TelephonyManager;
 import android.telephony.TelephonyScanManager;
+import android.util.ArraySet;
 
 import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -66,7 +68,6 @@ public class ONSNetworkScanCtlr {
     private TelephonyManager mTelephonyManager;
     private CarrierConfigManager configManager;
     private int mRsrpEntryThreshold;
-    private int mRssnrEntryThreshold;
     @VisibleForTesting
     protected NetworkAvailableCallBack mNetworkAvailableCallBack;
     HandlerThread mThread;
@@ -149,7 +150,6 @@ public class ONSNetworkScanCtlr {
                     if (cellInfo instanceof CellInfoLte) {
                         int rsrp = ((CellInfoLte) cellInfo).getCellSignalStrength().getRsrp();
                         logDebug("cell info rsrp: " + rsrp);
-                        // Todo(b/122917491)
                         if (rsrp >= mRsrpEntryThreshold) {
                             filteredResults.add(cellInfo);
                         }
@@ -233,17 +233,18 @@ public class ONSNetworkScanCtlr {
     private NetworkScanRequest createNetworkScanRequest(ArrayList<AvailableNetworkInfo> availableNetworks,
             int periodicity) {
         RadioAccessSpecifier[] ras = new RadioAccessSpecifier[1];
-        int[] bands = new int[1];
-
-        /* hardcoding band for now, Todo b/113753823 */
-        bands[0] = AccessNetworkConstants.EutranBand.BAND_48;
-
         ArrayList<String> mccMncs = new ArrayList<String>();
-        /* retrieve mcc mncs for a subscription id */
+        Set<Integer> bandSet = new ArraySet<>();
+
+        /* by default add band 48 */
+        bandSet.add(AccessNetworkConstants.EutranBand.BAND_48);
+        /* retrieve mcc mncs and bands for available networks */
         for (AvailableNetworkInfo availableNetwork : availableNetworks) {
             mccMncs.addAll(availableNetwork.getMccMncs());
+            bandSet.addAll(availableNetwork.getBands());
         }
 
+        int[] bands = bandSet.stream().mapToInt(band->band).toArray();
         /* create network scan request */
         ras[0] = new RadioAccessSpecifier(AccessNetworkConstants.AccessNetworkType.EUTRAN, bands,
                 null);
@@ -279,12 +280,10 @@ public class ONSNetworkScanCtlr {
             /* Need to stop current scan if we already have one */
             stopNetworkScan();
 
+            /* user lower threshold to enable modem stack */
             mRsrpEntryThreshold =
                 getIntCarrierConfig(
-                    CarrierConfigManager.KEY_OPPORTUNISTIC_NETWORK_ENTRY_THRESHOLD_RSRP_INT);
-            mRssnrEntryThreshold =
-                getIntCarrierConfig(
-                    CarrierConfigManager.KEY_OPPORTUNISTIC_NETWORK_ENTRY_THRESHOLD_RSSNR_INT);
+                    CarrierConfigManager.KEY_OPPORTUNISTIC_NETWORK_EXIT_THRESHOLD_RSRP_INT);
 
             /* start new scan */
             networkScan = mTelephonyManager.requestNetworkScan(networkScanRequest,
