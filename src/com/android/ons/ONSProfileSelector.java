@@ -896,6 +896,7 @@ public class ONSProfileSelector {
                         synchronized (mLock) {
                             stopProfileSelectionProcess((IUpdateAvailableNetworksCallback) msg.obj);
                         }
+                        break;
                     case MSG_SUB_SWITCH_COMPLETE:
                         logDebug("Msg received for sub switch");
                         synchronized (mLock) {
