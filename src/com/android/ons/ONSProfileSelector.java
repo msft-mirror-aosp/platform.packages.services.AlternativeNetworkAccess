@@ -41,9 +41,9 @@ import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.telephony.IUpdateAvailableNetworksCallback;
 import com.android.internal.telephony.ISetOpportunisticDataCallback;
 import com.android.internal.telephony.ISub;
+import com.android.internal.telephony.IUpdateAvailableNetworksCallback;
 
 import java.util.ArrayList;
 import java.util.Collections;
