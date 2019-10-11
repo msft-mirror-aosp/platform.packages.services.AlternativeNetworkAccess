@@ -105,6 +105,7 @@ public class ONSProfileSelectorTest extends ONSBaseTest {
         }
     }
 
+
     @Test
     public void testStartProfileSelectionWithNoOpportunisticSub() {
         List<CellInfo> results2 = new ArrayList<CellInfo>();
@@ -158,6 +159,7 @@ public class ONSProfileSelectorTest extends ONSBaseTest {
         assertFalse(mCallbackInvoked);
     }
 
+
     @Test
     public void testStartProfileSelectionSuccess() {
         List<SubscriptionInfo> subscriptionInfoList = new ArrayList<SubscriptionInfo>();
@@ -187,14 +189,12 @@ public class ONSProfileSelectorTest extends ONSBaseTest {
         };
 
         mResult = -1;
-
         mReady = false;
         new Thread(new Runnable() {
             @Override
             public void run() {
                 Looper.prepare();
-                doReturn(subscriptionInfoList).when(
-                        mSubscriptionManager).getOpportunisticSubscriptions();
+                doReturn(subscriptionInfoList).when(mSubscriptionManager).getOpportunisticSubscriptions();
                 doReturn(true).when(mSubscriptionManager).isActiveSubId(anyInt());
                 mONSProfileSelector = new MyONSProfileSelector(mContext,
                         new MyONSProfileSelector.ONSProfileSelectionCallback() {
@@ -217,7 +217,6 @@ public class ONSProfileSelectorTest extends ONSBaseTest {
 
         // Testing startProfileSelection with oppotunistic sub.
         // On success onProfileSelectionDone must get invoked.
-
         assertFalse(mReady);
         waitForMs(500);
         mONSProfileSelector.mNetworkAvailableCallBackCpy.onNetworkAvailability(results2);
