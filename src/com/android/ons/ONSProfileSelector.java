@@ -686,6 +686,10 @@ public class ONSProfileSelector {
             IUpdateAvailableNetworksCallback callbackStub) {
         logDebug("startProfileSelection availableNetworks: " + availableNetworks);
         if (availableNetworks == null || availableNetworks.size() == 0) {
+            if (callbackStub != null) {
+                sendUpdateNetworksCallbackHelper(callbackStub,
+                        TelephonyManager.UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS);
+            }
             return;
         }
         Object[] objects = new Object[]{availableNetworks, callbackStub};
