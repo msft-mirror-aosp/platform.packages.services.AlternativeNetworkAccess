@@ -428,6 +428,9 @@ public class OpportunisticNetworkService extends Service {
                 if (mIsEnabled) {
                     /*  if carrier is reporting availability, then it takes higher priority. */
                     mProfileSelector.startProfileSelection(availableNetworks, callbackStub);
+                } else {
+                    sendUpdateNetworksCallbackHelper(callbackStub,
+                            TelephonyManager.UPDATE_AVAILABLE_NETWORKS_ABORTED);
                 }
             } finally {
                 Binder.restoreCallingIdentity(identity);
@@ -495,8 +498,13 @@ public class OpportunisticNetworkService extends Service {
                         new ONSConfigInput(availableNetworks, callbackStub));
 
                 /* reporting availability. proceed if carrier app has not requested any */
-                if (mIsEnabled && mONSConfigInputHashMap.get(CARRIER_APP_CONFIG_NAME) == null) {
-                    mProfileSelector.startProfileSelection(availableNetworks, callbackStub);
+                if (mIsEnabled) {
+                    if (mONSConfigInputHashMap.get(CARRIER_APP_CONFIG_NAME) == null) {
+                        mProfileSelector.startProfileSelection(availableNetworks, callbackStub);
+                    }
+                } else {
+                    sendUpdateNetworksCallbackHelper(callbackStub,
+                            TelephonyManager.UPDATE_AVAILABLE_NETWORKS_ABORTED);
                 }
             } else {
                 if (!mIsEnabled) {
