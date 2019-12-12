@@ -94,6 +94,8 @@ public class ONSProfileSelector {
     protected SubscriptionManager mSubscriptionManager;
     @VisibleForTesting
     protected List<SubscriptionInfo> mOppSubscriptionInfos;
+    @VisibleForTesting
+    protected List<SubscriptionInfo> mStandaloneOppSubInfos;
     private ONSProfileSelectionCallback mProfileSelectionCallback;
     private int mSequenceId;
     private int mSubId;
@@ -279,7 +281,6 @@ public class ONSProfileSelector {
                 }
             }
         }
-
         return SubscriptionManager.INVALID_SUBSCRIPTION_ID;
     }
 
@@ -546,7 +547,8 @@ public class ONSProfileSelector {
         return false;
     }
 
-    private int retrieveBestSubscription(List<CellInfo> results) {
+    @VisibleForTesting
+    protected int retrieveBestSubscription(List<CellInfo> results) {
         /* sort the results according to signal strength level */
         Collections.sort(results, new Comparator<CellInfo>() {
             @Override
@@ -679,6 +681,24 @@ public class ONSProfileSelector {
         return false;
     }
 
+    public boolean containStandaloneOppSubs(ArrayList<AvailableNetworkInfo> availableNetworks) {
+        if (mStandaloneOppSubInfos == null) {
+            logDebug("received null subscription infos");
+            return false;
+        }
+        if (mStandaloneOppSubInfos.size() > 0) {
+            logDebug("Standalone opportunistic subInfos size " + mStandaloneOppSubInfos.size());
+            ArrayList<AvailableNetworkInfo> filteredAvailableNetworks =
+                    getFilteredAvailableNetworks(
+                            (ArrayList<AvailableNetworkInfo>) availableNetworks,
+                            mStandaloneOppSubInfos);
+            if (filteredAvailableNetworks.size() > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public boolean isOpportunisticSubActive() {
         if (mOppSubscriptionInfos == null) {
             logDebug("received null subscription infos");
@@ -774,9 +794,14 @@ public class ONSProfileSelector {
     protected void updateOpportunisticSubscriptions() {
         synchronized (mLock) {
             mOppSubscriptionInfos = mSubscriptionManager
-                .getOpportunisticSubscriptions().stream()
-                .filter(subInfo -> subInfo.isGroupDisabled() != true)
-                .collect(Collectors.toList());
+                    .getOpportunisticSubscriptions().stream()
+                    .filter(subInfo -> subInfo.isGroupDisabled() != true)
+                    .collect(Collectors.toList());
+            if (mOppSubscriptionInfos != null) {
+                mStandaloneOppSubInfos = mOppSubscriptionInfos.stream()
+                        .filter(subInfo -> subInfo.getGroupUuid() == null)
+                        .collect(Collectors.toList());
+            }
         }
     }
 
