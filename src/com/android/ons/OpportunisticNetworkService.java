@@ -17,6 +17,9 @@
 package com.android.ons;
 
 import android.app.Service;
+import android.compat.Compatibility;
+import android.compat.annotation.ChangeId;
+import android.compat.annotation.EnabledAfter;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -24,6 +27,7 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Binder;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Message;
 import android.os.IBinder;
@@ -71,6 +75,14 @@ public class OpportunisticNetworkService extends Service {
     private static final boolean DBG = true;
     /* message to indicate sim state update */
     private static final int MSG_SIM_STATE_CHANGE = 1;
+
+    /**
+     * To expand the error codes for {@link TelephonyManager#updateAvailableNetworks} and
+     * {@link TelephonyManager#setPreferredOpportunisticDataSubscription}.
+     */
+    @ChangeId
+    @EnabledAfter(targetSdkVersion = Build.VERSION_CODES.Q)
+    static final long CALLBACK_ON_MORE_ERROR_CODE_CHANGE = 130595455L;
 
     /**
      * Profile selection callback. Will be called once Profile selector decides on
@@ -380,15 +392,27 @@ public class OpportunisticNetworkService extends Service {
             /* carrier apps should report only subscription */
             if (availableNetworks.size() > 1) {
                 log("Carrier app should not pass more than one subscription");
-                sendUpdateNetworksCallbackHelper(callbackStub,
-                        TelephonyManager.UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS);
+                if (Compatibility.isChangeEnabled(CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
+                    sendUpdateNetworksCallbackHelper(callbackStub,
+                            TelephonyManager
+                                    .UPDATE_AVAILABLE_NETWORKS_MULTIPLE_NETWORKS_NOT_SUPPORTED);
+                } else {
+                    sendUpdateNetworksCallbackHelper(callbackStub,
+                            TelephonyManager.UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS);
+                }
                 return;
             }
 
             if (!mProfileSelector.hasOpprotunisticSub(availableNetworks)) {
                 log("No opportunistic subscriptions received");
-                sendUpdateNetworksCallbackHelper(callbackStub,
-                        TelephonyManager.UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS);
+                if (Compatibility.isChangeEnabled(CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
+                    sendUpdateNetworksCallbackHelper(callbackStub,
+                            TelephonyManager
+                                    .UPDATE_AVAILABLE_NETWORKS_NO_OPPORTUNISTIC_SUB_AVAILABLE);
+                } else {
+                    sendUpdateNetworksCallbackHelper(callbackStub,
+                            TelephonyManager.UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS);
+                }
                 return;
             }
 
@@ -421,6 +445,14 @@ public class OpportunisticNetworkService extends Service {
                 if (mIsEnabled) {
                     /*  if carrier is reporting availability, then it takes higher priority. */
                     mProfileSelector.startProfileSelection(availableNetworks, callbackStub);
+                } else {
+                    if (Compatibility.isChangeEnabled(CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
+                        sendUpdateNetworksCallbackHelper(callbackStub,
+                                TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SERVICE_IS_DISABLED);
+                    } else {
+                        sendUpdateNetworksCallbackHelper(callbackStub,
+                                TelephonyManager.UPDATE_AVAILABLE_NETWORKS_ABORTED);
+                    }
                 }
             } finally {
                 Binder.restoreCallingIdentity(identity);
@@ -480,16 +512,32 @@ public class OpportunisticNetworkService extends Service {
                 /* all subscriptions should be opportunistic subscriptions */
                 if (!mProfileSelector.hasOpprotunisticSub(availableNetworks)) {
                     log("No opportunistic subscriptions received");
-                    sendUpdateNetworksCallbackHelper(callbackStub,
-                            TelephonyManager.UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS);
+                    if (Compatibility.isChangeEnabled(CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
+                        sendUpdateNetworksCallbackHelper(callbackStub,
+                                TelephonyManager
+                                        .UPDATE_AVAILABLE_NETWORKS_NO_OPPORTUNISTIC_SUB_AVAILABLE);
+                    } else {
+                        sendUpdateNetworksCallbackHelper(callbackStub,
+                                TelephonyManager.UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS);
+                    }
                     return;
                 }
                 mONSConfigInputHashMap.put(SYSTEM_APP_CONFIG_NAME,
                         new ONSConfigInput(availableNetworks, callbackStub));
 
                 /* reporting availability. proceed if carrier app has not requested any */
-                if (mIsEnabled && mONSConfigInputHashMap.get(CARRIER_APP_CONFIG_NAME) == null) {
-                    mProfileSelector.startProfileSelection(availableNetworks, callbackStub);
+                if (mIsEnabled) {
+                    if (mONSConfigInputHashMap.get(CARRIER_APP_CONFIG_NAME) == null) {
+                        mProfileSelector.startProfileSelection(availableNetworks, callbackStub);
+                    }
+                } else {
+                    if (Compatibility.isChangeEnabled(CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
+                        sendUpdateNetworksCallbackHelper(callbackStub,
+                                TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SERVICE_IS_DISABLED);
+                    } else {
+                        sendUpdateNetworksCallbackHelper(callbackStub,
+                                TelephonyManager.UPDATE_AVAILABLE_NETWORKS_ABORTED);
+                    }
                 }
             } else {
                 if (!mIsEnabled) {
