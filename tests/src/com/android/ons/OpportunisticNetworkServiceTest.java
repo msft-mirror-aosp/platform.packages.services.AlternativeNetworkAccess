@@ -15,6 +15,7 @@
  */
 package com.android.ons;
 
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -23,12 +24,14 @@ import static org.mockito.Mockito.verify;
 import android.content.Intent;
 import android.os.Looper;
 import android.os.RemoteException;
-import android.os.ServiceManager;
 import android.telephony.AvailableNetworkInfo;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
+import android.telephony.TelephonyFrameworkInitializer;
 import android.telephony.TelephonyManager;
 import android.util.Log;
+
+import androidx.test.runner.AndroidJUnit4;
 
 import com.android.internal.telephony.IOns;
 import com.android.internal.telephony.ISetOpportunisticDataCallback;
@@ -39,12 +42,9 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import static org.mockito.Mockito.any;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-
-import androidx.test.runner.AndroidJUnit4;
 
 @RunWith(AndroidJUnit4.class)
 public class OpportunisticNetworkServiceTest extends ONSBaseTest {
@@ -348,6 +348,14 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
             Log.e(TAG, "RemoteException", ex);
         }
         verify(mockProfileSelector, times(1)).stopProfileSelection(any());
+    }
+
+    private IOns getIOns() {
+        return IOns.Stub.asInterface(
+                TelephonyFrameworkInitializer
+                        .getTelephonyServiceManager()
+                        .getOpportunisticNetworkServiceRegisterer()
+                        .get());
     }
 
     public static void waitForMs(long ms) {
