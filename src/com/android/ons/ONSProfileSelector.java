@@ -674,7 +674,9 @@ public class ONSProfileSelector {
     }
 
     private boolean enableModem(int subId, boolean enable) {
-        if (!mSubscriptionManager.isActiveSubId(subId)) {
+        SubscriptionInfo info = mSubscriptionManager.getActiveSubscriptionInfo(subId);
+        if (info == null) {
+            // Subscription is not active. Do nothing.
             return false;
         }
 
@@ -684,7 +686,7 @@ public class ONSProfileSelector {
                 selectProfileForData(SubscriptionManager.DEFAULT_SUBSCRIPTION_ID, false, null);
             }
         }
-        int phoneId = SubscriptionManager.getPhoneId(subId);
+        int phoneId = info.getSimSlotIndex();
         /*  Todo: b/135067156
          *  Reenable this code once 135067156 is fixed
         if (mSubscriptionBoundTelephonyManager.isModemEnabledForSlot(phoneId) == enable) {

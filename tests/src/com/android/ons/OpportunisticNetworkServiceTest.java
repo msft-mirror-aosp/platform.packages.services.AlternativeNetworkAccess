@@ -74,23 +74,15 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
             public void run() {
                 Looper.prepare();
                 mOpportunisticNetworkService = new OpportunisticNetworkService();
-                mContext.startService(intent);
                 mOpportunisticNetworkService.initialize(mContext);
-                mOpportunisticNetworkService.mContext = mContext;
                 mOpportunisticNetworkService.mSubscriptionManager = mSubscriptionManager;
+                iOpportunisticNetworkService = (IOns) mOpportunisticNetworkService.onBind(null);
                 mLooper = Looper.myLooper();
+                setReady(true);
                 Looper.loop();
             }
         }).start();
-        iOpportunisticNetworkService = getIOns();
-        for (int i = 0; i < 5; i++) {
-            if (iOpportunisticNetworkService == null) {
-                waitForMs(500);
-                iOpportunisticNetworkService = getIOns();
-            } else {
-                break;
-            }
-        }
+        waitUntilReady(200);
     }
 
     @After
@@ -356,10 +348,6 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
             Log.e(TAG, "RemoteException", ex);
         }
         verify(mockProfileSelector, times(1)).stopProfileSelection(any());
-    }
-
-    private IOns getIOns() {
-        return IOns.Stub.asInterface(ServiceManager.getService("ions"));
     }
 
     public static void waitForMs(long ms) {
