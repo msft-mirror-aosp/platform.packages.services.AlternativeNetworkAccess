@@ -75,6 +75,9 @@ public class ONSProfileSelector {
     /* message to indicate Subscription switch completion */
     private static final int MSG_SUB_SWITCH_COMPLETE = 3;
 
+    /* message to stop profile selection process */
+    private static final int MSG_STOP_PROFILE_SELECTION = 4;
+
     private boolean mIsEnabled = false;
 
     @VisibleForTesting
@@ -95,7 +98,8 @@ public class ONSProfileSelector {
     private ONSProfileSelectionCallback mProfileSelectionCallback;
     private int mSequenceId;
     private int mSubId;
-    private int mCurrentDataSubId = SubscriptionManager.INVALID_SUBSCRIPTION_ID;
+    @VisibleForTesting
+    protected int mCurrentDataSubId = SubscriptionManager.INVALID_SUBSCRIPTION_ID;
     private ArrayList<AvailableNetworkInfo> mAvailableNetworkInfos;
     private IUpdateAvailableNetworksCallback mNetworkScanCallback;
 
@@ -144,8 +148,7 @@ public class ONSProfileSelector {
                                                     .UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS);
                                 } else {
                                     if (Compatibility.isChangeEnabled(
-                                            OpportunisticNetworkService
-                                                    .CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
+                                            TelephonyManager.CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
                                         sendUpdateNetworksCallbackHelper(mNetworkScanCallback,
                                                 TelephonyManager
                                                         .UPDATE_AVAILABLE_NETWORKS_SERVICE_IS_DISABLED);
@@ -169,8 +172,7 @@ public class ONSProfileSelector {
                                 TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SUCCESS);
                         } else {
                             if (Compatibility.isChangeEnabled(
-                                    OpportunisticNetworkService
-                                            .CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
+                                    TelephonyManager.CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
                                 sendUpdateNetworksCallbackHelper(mNetworkScanCallback,
                                         TelephonyManager
                                                 .UPDATE_AVAILABLE_NETWORKS_ENABLE_MODEM_FAIL);
@@ -377,7 +379,7 @@ public class ONSProfileSelector {
                 TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SUCCESS);
         } else {
             if (Compatibility.isChangeEnabled(
-                    OpportunisticNetworkService.CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
+                    TelephonyManager.CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
                 sendUpdateNetworksCallbackHelper(mNetworkScanCallback,
                         TelephonyManager.UPDATE_AVAILABLE_NETWORKS_ENABLE_MODEM_FAIL);
             } else {
@@ -482,7 +484,7 @@ public class ONSProfileSelector {
         if (mOppSubscriptionInfos == null) {
             logDebug("null subscription infos");
             if (Compatibility.isChangeEnabled(
-                    OpportunisticNetworkService.CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
+                    TelephonyManager.CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
                 sendUpdateNetworksCallbackHelper(callbackStub,
                         TelephonyManager.UPDATE_AVAILABLE_NETWORKS_NO_OPPORTUNISTIC_SUB_AVAILABLE);
             } else {
@@ -536,13 +538,14 @@ public class ONSProfileSelector {
                             TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SUCCESS);
                     } else {
                         if (Compatibility.isChangeEnabled(
-                                OpportunisticNetworkService.CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
+                                TelephonyManager.CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
                             sendUpdateNetworksCallbackHelper(callbackStub,
                                     TelephonyManager.UPDATE_AVAILABLE_NETWORKS_ENABLE_MODEM_FAIL);
                         } else {
                             sendUpdateNetworksCallbackHelper(callbackStub,
                                     TelephonyManager.UPDATE_AVAILABLE_NETWORKS_ABORTED);
                         }
+
                     }
                     mProfileSelectionCallback.onProfileSelectionDone();
                     mAvailableNetworkInfos = null;
@@ -554,7 +557,7 @@ public class ONSProfileSelector {
             }
         } else if (mOppSubscriptionInfos.size() == 0) {
             if (Compatibility.isChangeEnabled(
-                    OpportunisticNetworkService.CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
+                    TelephonyManager.CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
                 sendUpdateNetworksCallbackHelper(callbackStub,
                         TelephonyManager.UPDATE_AVAILABLE_NETWORKS_NO_OPPORTUNISTIC_SUB_AVAILABLE);
             } else {
@@ -643,7 +646,7 @@ public class ONSProfileSelector {
         int subId = getActiveOpportunisticSubId();
         if (subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
             if (Compatibility.isChangeEnabled(
-                    OpportunisticNetworkService.CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
+                    TelephonyManager.CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
                 sendUpdateNetworksCallbackHelper(callbackStub,
                         TelephonyManager.UPDATE_AVAILABLE_NETWORKS_NO_OPPORTUNISTIC_SUB_AVAILABLE);
             } else {
@@ -657,7 +660,7 @@ public class ONSProfileSelector {
                 TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SUCCESS);
         } else {
             if (Compatibility.isChangeEnabled(
-                    OpportunisticNetworkService.CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
+                    TelephonyManager.CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
                 sendUpdateNetworksCallbackHelper(callbackStub,
                         TelephonyManager.UPDATE_AVAILABLE_NETWORKS_DISABLE_MODEM_FAIL);
             } else {
@@ -672,6 +675,12 @@ public class ONSProfileSelector {
             return false;
         }
 
+        // If disabling modem for opportunistic sub, make sure to switch data back to default sub.
+        if (!enable) {
+            if (mSubscriptionManager.getPreferredDataSubscriptionId() == subId) {
+                selectProfileForData(SubscriptionManager.DEFAULT_SUBSCRIPTION_ID, false, null);
+            }
+        }
         int phoneId = SubscriptionManager.getPhoneId(subId);
         /*  Todo: b/135067156
          *  Reenable this code once 135067156 is fixed
@@ -681,6 +690,12 @@ public class ONSProfileSelector {
         } */
 
         return mSubscriptionBoundTelephonyManager.enableModemForSlot(phoneId, enable);
+    }
+
+    private void stopProfileSelectionProcess(IUpdateAvailableNetworksCallback callbackStub) {
+        stopProfileScanningPrecedure();
+        logDebug("stopProfileSelection");
+        disableOpportunisticModem(callbackStub);
     }
 
     private void stopProfileScanningPrecedure() {
@@ -737,6 +752,10 @@ public class ONSProfileSelector {
             IUpdateAvailableNetworksCallback callbackStub) {
         logDebug("startProfileSelection availableNetworks: " + availableNetworks);
         if (availableNetworks == null || availableNetworks.size() == 0) {
+            if (callbackStub != null) {
+                sendUpdateNetworksCallbackHelper(callbackStub,
+                        TelephonyManager.UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS);
+            }
             return;
         }
         Object[] objects = new Object[]{availableNetworks, callbackStub};
@@ -766,7 +785,7 @@ public class ONSProfileSelector {
             if (iSub == null) {
                 log("Could not get Subscription Service handle");
                 if (Compatibility.isChangeEnabled(
-                        OpportunisticNetworkService.CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
+                        TelephonyManager.CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
                     sendSetOpptCallbackHelper(callbackStub,
                             TelephonyManager.SET_OPPORTUNISTIC_SUB_REMOTE_SERVICE_EXCEPTION);
                 } else {
@@ -780,7 +799,7 @@ public class ONSProfileSelector {
             } catch (RemoteException ex) {
                 log("Could not connect to Subscription Service");
                 if (Compatibility.isChangeEnabled(
-                        OpportunisticNetworkService.CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
+                        TelephonyManager.CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
                     sendSetOpptCallbackHelper(callbackStub,
                             TelephonyManager.SET_OPPORTUNISTIC_SUB_REMOTE_SERVICE_EXCEPTION);
                 } else {
@@ -793,7 +812,7 @@ public class ONSProfileSelector {
         } else {
             log("Inactive sub passed for preferred data " + subId);
             if (Compatibility.isChangeEnabled(
-                    OpportunisticNetworkService.CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
+                    TelephonyManager.CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
                 if (isOpprotunisticSub(subId)) {
                     sendSetOpptCallbackHelper(callbackStub,
                             TelephonyManager.SET_OPPORTUNISTIC_SUB_INACTIVE_SUBSCRIPTION);
@@ -816,9 +835,9 @@ public class ONSProfileSelector {
      * stop profile selection procedure
      */
     public void stopProfileSelection(IUpdateAvailableNetworksCallback callbackStub) {
-        stopProfileScanningPrecedure();
         logDebug("stopProfileSelection");
-        disableOpportunisticModem(callbackStub);
+        Message message = Message.obtain(mHandler, MSG_STOP_PROFILE_SELECTION, callbackStub);
+        message.sendToTarget();
     }
 
     @VisibleForTesting
@@ -880,6 +899,12 @@ public class ONSProfileSelector {
                         logDebug("Msg received for profile update");
                         synchronized (mLock) {
                             checkProfileUpdate((Object[]) msg.obj);
+                        }
+                        break;
+                    case MSG_STOP_PROFILE_SELECTION:
+                        logDebug("Msg received to stop profile selection");
+                        synchronized (mLock) {
+                            stopProfileSelectionProcess((IUpdateAvailableNetworksCallback) msg.obj);
                         }
                         break;
                     case MSG_SUB_SWITCH_COMPLETE:
