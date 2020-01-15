@@ -230,10 +230,10 @@ public class OpportunisticNetworkService extends Service {
                 ISetOpportunisticDataCallback callbackStub, String callingPackage) {
             logDebug("setPreferredDataSubscriptionId subId:" + subId + "callingPackage: " + callingPackage);
             if (!enforceModifyPhoneStatePermission(mContext)) {
-                TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(
+                TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(mContext,
                         mSubscriptionManager.getDefaultSubscriptionId(), "setPreferredDataSubscriptionId");
                 if (subId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
-                    TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(subId,
+                    TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(mContext, subId,
                             "setPreferredDataSubscriptionId");
                 }
             } else {
@@ -306,7 +306,7 @@ public class OpportunisticNetworkService extends Service {
                         (ArrayList<AvailableNetworkInfo>) availableNetworks, callbackStub);
             } else {
                 /* check if the app has primary carrier permission */
-                TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(
+                TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(mContext,
                         mSubscriptionManager.getDefaultSubscriptionId(), "updateAvailableNetworks");
                 handleCarrierAppAvailableNetworks(
                         (ArrayList<AvailableNetworkInfo>) availableNetworks, callbackStub,
@@ -418,7 +418,7 @@ public class OpportunisticNetworkService extends Service {
                 if (Binder.withCleanCallingIdentity(
                             () -> mSubscriptionManager.isActiveSubId(
                                     availableNetworkInfo.getSubId()))) {
-                    TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(
+                    TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(mContext,
                         availableNetworkInfo.getSubId(), "updateAvailableNetworks");
                 } else {
                     /* check if the app has opportunistic carrier permission */
