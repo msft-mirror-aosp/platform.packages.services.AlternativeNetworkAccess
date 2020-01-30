@@ -21,10 +21,8 @@ import static android.telephony.AvailableNetworkInfo.PRIORITY_LOW;
 
 import android.app.PendingIntent;
 import android.compat.Compatibility;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.os.AsyncTask;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -34,7 +32,6 @@ import android.os.ServiceManager;
 import android.telephony.AvailableNetworkInfo;
 import android.telephony.CellInfo;
 import android.telephony.CellInfoLte;
-import com.android.telephony.Rlog;
 import android.telephony.SignalStrength;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
@@ -45,6 +42,7 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.ISetOpportunisticDataCallback;
 import com.android.internal.telephony.ISub;
 import com.android.internal.telephony.IUpdateAvailableNetworksCallback;
+import com.android.telephony.Rlog;
 
 import java.util.ArrayList;
 import java.util.Collections;
