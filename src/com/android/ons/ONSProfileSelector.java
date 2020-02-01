@@ -21,10 +21,8 @@ import static android.telephony.AvailableNetworkInfo.PRIORITY_LOW;
 
 import android.app.PendingIntent;
 import android.compat.Compatibility;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.os.AsyncTask;
 import android.os.Handler;
 import android.os.HandlerThread;
