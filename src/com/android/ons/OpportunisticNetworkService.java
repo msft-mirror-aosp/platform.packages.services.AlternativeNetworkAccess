@@ -17,6 +17,9 @@
 package com.android.ons;
 
 import android.app.Service;
+import android.compat.Compatibility;
+import android.compat.annotation.ChangeId;
+import android.compat.annotation.EnabledAfter;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -24,13 +27,13 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Binder;
+import android.os.Build;
 import android.os.Handler;
-import android.os.Message;
 import android.os.IBinder;
+import android.os.Message;
 import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.telephony.AvailableNetworkInfo;
-import android.telephony.Rlog;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
@@ -41,6 +44,7 @@ import com.android.internal.telephony.ISetOpportunisticDataCallback;
 import com.android.internal.telephony.IUpdateAvailableNetworksCallback;
 import com.android.internal.telephony.TelephonyIntents;
 import com.android.internal.telephony.TelephonyPermissions;
+import com.android.telephony.Rlog;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -52,15 +56,15 @@ import java.util.List;
  * Use the same to provide user opportunistic data in areas with corresponding networks
  */
 public class OpportunisticNetworkService extends Service {
-    private Context mContext;
+    @VisibleForTesting protected Context mContext;
     private TelephonyManager mTelephonyManager;
-    private SubscriptionManager mSubscriptionManager;
+    @VisibleForTesting protected SubscriptionManager mSubscriptionManager;
 
     private final Object mLock = new Object();
-    private boolean mIsEnabled;
+    @VisibleForTesting protected boolean mIsEnabled;
     private ONSProfileSelector mProfileSelector;
     private SharedPreferences mSharedPref;
-    private HashMap<String, ONSConfigInput> mONSConfigInputHashMap;
+    @VisibleForTesting protected HashMap<String, ONSConfigInput> mONSConfigInputHashMap;
 
     private static final String TAG = "ONS";
     private static final String PREF_NAME = TAG;
@@ -71,6 +75,14 @@ public class OpportunisticNetworkService extends Service {
     private static final boolean DBG = true;
     /* message to indicate sim state update */
     private static final int MSG_SIM_STATE_CHANGE = 1;
+
+    /**
+     * To expand the error codes for {@link TelephonyManager#updateAvailableNetworks} and
+     * {@link TelephonyManager#setPreferredOpportunisticDataSubscription}.
+     */
+    @ChangeId
+    @EnabledAfter(targetSdkVersion = Build.VERSION_CODES.Q)
+    static final long CALLBACK_ON_MORE_ERROR_CODE_CHANGE = 130595455L;
 
     /**
      * Profile selection callback. Will be called once Profile selector decides on
@@ -118,16 +130,22 @@ public class OpportunisticNetworkService extends Service {
         return false;
     }
 
-    private void handleSimStateChange() {
+    @VisibleForTesting
+    protected void handleSimStateChange() {
         logDebug("SIM state changed");
-        ONSConfigInput onsConfigInput = mONSConfigInputHashMap.get(CARRIER_APP_CONFIG_NAME);
-        if (onsConfigInput == null) {
+        ONSConfigInput carrierAppConfigInput = mONSConfigInputHashMap.get(CARRIER_APP_CONFIG_NAME);
+        if (carrierAppConfigInput == null) {
             return;
         }
         List<SubscriptionInfo> subscriptionInfos =
             mSubscriptionManager.getActiveSubscriptionInfoList(false);
+        if (subscriptionInfos == null) {
+          return;
+        }
+
+        logDebug("handleSimStateChange: subscriptionInfos - " + subscriptionInfos);
         for (SubscriptionInfo subscriptionInfo : subscriptionInfos) {
-            if (subscriptionInfo.getSubscriptionId() == onsConfigInput.getPrimarySub()) {
+            if (subscriptionInfo.getSubscriptionId() == carrierAppConfigInput.getPrimarySub()) {
                 return;
             }
         }
@@ -142,9 +160,6 @@ public class OpportunisticNetworkService extends Service {
                     mONSConfigInputHashMap.get(SYSTEM_APP_CONFIG_NAME).getAvailableNetworkInfos(),
                     mONSConfigInputHashMap.get(
                             SYSTEM_APP_CONFIG_NAME).getAvailableNetworkCallback());
-        } else {
-            mProfileSelector.stopProfileSelection(mONSConfigInputHashMap.get(
-                    SYSTEM_APP_CONFIG_NAME).getAvailableNetworkCallback());
         }
     }
 
@@ -226,13 +241,21 @@ public class OpportunisticNetworkService extends Service {
                 ISetOpportunisticDataCallback callbackStub, String callingPackage) {
             logDebug("setPreferredDataSubscriptionId subId:" + subId + "callingPackage: " + callingPackage);
             if (!enforceModifyPhoneStatePermission(mContext)) {
-                TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(
+                TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(mContext,
                         mSubscriptionManager.getDefaultSubscriptionId(), "setPreferredDataSubscriptionId");
                 if (subId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
-                    TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(subId,
+                    TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(mContext, subId,
                             "setPreferredDataSubscriptionId");
                 }
+            } else {
+                if (mONSConfigInputHashMap.get(CARRIER_APP_CONFIG_NAME) != null) {
+                    sendSetOpptCallbackHelper(callbackStub,
+                        TelephonyManager.SET_OPPORTUNISTIC_SUB_VALIDATION_FAILED);
+                    return;
+                }
             }
+
+
             final long identity = Binder.clearCallingIdentity();
             try {
                 mProfileSelector.selectProfileForData(subId, needValidation, callbackStub);
@@ -253,11 +276,13 @@ public class OpportunisticNetworkService extends Service {
          * subscription id
          *
          */
-        public int getPreferredDataSubscriptionId(String callingPackage) {
+        @Override
+        public int getPreferredDataSubscriptionId(String callingPackage,
+                String callingFeatureId) {
             TelephonyPermissions
                     .checkCallingOrSelfReadPhoneState(mContext,
                             mSubscriptionManager.getDefaultSubscriptionId(),
-                            callingPackage, "getPreferredDataSubscriptionId");
+                            callingPackage, callingFeatureId, "getPreferredDataSubscriptionId");
             final long identity = Binder.clearCallingIdentity();
             try {
                 return mProfileSelector.getPreferredDataSubscriptionId();
@@ -292,7 +317,7 @@ public class OpportunisticNetworkService extends Service {
                         (ArrayList<AvailableNetworkInfo>) availableNetworks, callbackStub);
             } else {
                 /* check if the app has primary carrier permission */
-                TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(
+                TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(mContext,
                         mSubscriptionManager.getDefaultSubscriptionId(), "updateAvailableNetworks");
                 handleCarrierAppAvailableNetworks(
                         (ArrayList<AvailableNetworkInfo>) availableNetworks, callbackStub,
@@ -352,11 +377,13 @@ public class OpportunisticNetworkService extends Service {
      * Start sub components if already enabled.
      * @param context context instance
      */
-    private void initialize(Context context) {
+    @VisibleForTesting
+    protected void initialize(Context context) {
         mContext = context;
         mTelephonyManager = TelephonyManager.from(mContext);
         mProfileSelector = new ONSProfileSelector(mContext, mProfileSelectionCallback);
-        mSharedPref = mContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        mSharedPref = mContext.createDeviceProtectedStorageContext().getSharedPreferences(
+                PREF_NAME, Context.MODE_PRIVATE);
         mSubscriptionManager = (SubscriptionManager) mContext.getSystemService(
                 Context.TELEPHONY_SUBSCRIPTION_SERVICE);
         mONSConfigInputHashMap = new HashMap<String, ONSConfigInput>();
@@ -372,15 +399,27 @@ public class OpportunisticNetworkService extends Service {
             /* carrier apps should report only subscription */
             if (availableNetworks.size() > 1) {
                 log("Carrier app should not pass more than one subscription");
-                sendUpdateNetworksCallbackHelper(callbackStub,
-                        TelephonyManager.UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS);
+                if (Compatibility.isChangeEnabled(CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
+                    sendUpdateNetworksCallbackHelper(callbackStub,
+                            TelephonyManager
+                                    .UPDATE_AVAILABLE_NETWORKS_MULTIPLE_NETWORKS_NOT_SUPPORTED);
+                } else {
+                    sendUpdateNetworksCallbackHelper(callbackStub,
+                            TelephonyManager.UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS);
+                }
                 return;
             }
 
             if (!mProfileSelector.hasOpprotunisticSub(availableNetworks)) {
                 log("No opportunistic subscriptions received");
-                sendUpdateNetworksCallbackHelper(callbackStub,
-                        TelephonyManager.UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS);
+                if (Compatibility.isChangeEnabled(CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
+                    sendUpdateNetworksCallbackHelper(callbackStub,
+                            TelephonyManager
+                                    .UPDATE_AVAILABLE_NETWORKS_NO_OPPORTUNISTIC_SUB_AVAILABLE);
+                } else {
+                    sendUpdateNetworksCallbackHelper(callbackStub,
+                            TelephonyManager.UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS);
+                }
                 return;
             }
 
@@ -388,7 +427,7 @@ public class OpportunisticNetworkService extends Service {
                 if (Binder.withCleanCallingIdentity(
                             () -> mSubscriptionManager.isActiveSubId(
                                     availableNetworkInfo.getSubId()))) {
-                    TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(
+                    TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(mContext,
                         availableNetworkInfo.getSubId(), "updateAvailableNetworks");
                 } else {
                     /* check if the app has opportunistic carrier permission */
@@ -405,14 +444,24 @@ public class OpportunisticNetworkService extends Service {
             final long identity = Binder.clearCallingIdentity();
             try {
                 ONSConfigInput onsConfigInput = new ONSConfigInput(availableNetworks, callbackStub);
-                onsConfigInput.setPrimarySub(
-                        mSubscriptionManager.getDefaultVoiceSubscriptionInfo().getSubscriptionId());
-                onsConfigInput.setPreferredDataSub(availableNetworks.get(0).getSubId());
-                mONSConfigInputHashMap.put(CARRIER_APP_CONFIG_NAME, onsConfigInput);
+                SubscriptionInfo subscriptionInfo = mSubscriptionManager.getDefaultVoiceSubscriptionInfo();
+                if (subscriptionInfo != null) {
+                    onsConfigInput.setPrimarySub(subscriptionInfo.getSubscriptionId());
+                    onsConfigInput.setPreferredDataSub(availableNetworks.get(0).getSubId());
+                    mONSConfigInputHashMap.put(CARRIER_APP_CONFIG_NAME, onsConfigInput);
+                }
 
                 if (mIsEnabled) {
                     /*  if carrier is reporting availability, then it takes higher priority. */
                     mProfileSelector.startProfileSelection(availableNetworks, callbackStub);
+                } else {
+                    if (Compatibility.isChangeEnabled(CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
+                        sendUpdateNetworksCallbackHelper(callbackStub,
+                                TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SERVICE_IS_DISABLED);
+                    } else {
+                        sendUpdateNetworksCallbackHelper(callbackStub,
+                                TelephonyManager.UPDATE_AVAILABLE_NETWORKS_ABORTED);
+                    }
                 }
             } finally {
                 Binder.restoreCallingIdentity(identity);
@@ -454,6 +503,15 @@ public class OpportunisticNetworkService extends Service {
         }
     }
 
+    private void sendSetOpptCallbackHelper(ISetOpportunisticDataCallback callback, int result) {
+        if (callback == null) return;
+        try {
+            callback.onComplete(result);
+        } catch (RemoteException exception) {
+            log("RemoteException " + exception);
+        }
+    }
+
     private void handleSystemAppAvailableNetworks(
             ArrayList<AvailableNetworkInfo> availableNetworks,
             IUpdateAvailableNetworksCallback callbackStub) {
@@ -463,16 +521,32 @@ public class OpportunisticNetworkService extends Service {
                 /* all subscriptions should be opportunistic subscriptions */
                 if (!mProfileSelector.hasOpprotunisticSub(availableNetworks)) {
                     log("No opportunistic subscriptions received");
-                    sendUpdateNetworksCallbackHelper(callbackStub,
-                            TelephonyManager.UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS);
+                    if (Compatibility.isChangeEnabled(CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
+                        sendUpdateNetworksCallbackHelper(callbackStub,
+                                TelephonyManager
+                                        .UPDATE_AVAILABLE_NETWORKS_NO_OPPORTUNISTIC_SUB_AVAILABLE);
+                    } else {
+                        sendUpdateNetworksCallbackHelper(callbackStub,
+                                TelephonyManager.UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS);
+                    }
                     return;
                 }
                 mONSConfigInputHashMap.put(SYSTEM_APP_CONFIG_NAME,
                         new ONSConfigInput(availableNetworks, callbackStub));
 
                 /* reporting availability. proceed if carrier app has not requested any */
-                if (mIsEnabled && mONSConfigInputHashMap.get(CARRIER_APP_CONFIG_NAME) == null) {
-                    mProfileSelector.startProfileSelection(availableNetworks, callbackStub);
+                if (mIsEnabled) {
+                    if (mONSConfigInputHashMap.get(CARRIER_APP_CONFIG_NAME) == null) {
+                        mProfileSelector.startProfileSelection(availableNetworks, callbackStub);
+                    }
+                } else {
+                    if (Compatibility.isChangeEnabled(CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
+                        sendUpdateNetworksCallbackHelper(callbackStub,
+                                TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SERVICE_IS_DISABLED);
+                    } else {
+                        sendUpdateNetworksCallbackHelper(callbackStub,
+                                TelephonyManager.UPDATE_AVAILABLE_NETWORKS_ABORTED);
+                    }
                 }
             } else {
                 if (!mIsEnabled) {
