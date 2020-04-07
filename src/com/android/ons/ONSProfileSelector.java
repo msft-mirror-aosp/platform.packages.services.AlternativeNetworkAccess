@@ -863,9 +863,14 @@ public class ONSProfileSelector {
     protected void updateOpportunisticSubscriptions() {
         synchronized (mLock) {
             mOppSubscriptionInfos = mSubscriptionManager
-                .getOpportunisticSubscriptions().stream()
-                .filter(subInfo -> subInfo.isGroupDisabled() != true)
-                .collect(Collectors.toList());
+                    .getOpportunisticSubscriptions().stream()
+                    .filter(subInfo -> subInfo.isGroupDisabled() != true)
+                    .collect(Collectors.toList());
+            if (mOppSubscriptionInfos != null) {
+                mStandaloneOppSubInfos = mOppSubscriptionInfos.stream()
+                        .filter(subInfo -> subInfo.getGroupUuid() == null)
+                        .collect(Collectors.toList());
+            }
         }
     }
 
