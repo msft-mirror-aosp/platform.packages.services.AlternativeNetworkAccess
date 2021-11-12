@@ -1,6 +1,8 @@
 package com.android.ons;
 
 import android.content.Context;
+import android.os.PersistableBundle;
+import android.telephony.CarrierConfigManager;
 import android.telephony.SubscriptionInfo;
 import android.telephony.TelephonyManager;
 import android.telephony.euicc.EuiccManager;
@@ -15,6 +17,7 @@ public class ONSProfileConfigurator {
     private final Context mContext;
     private EuiccManager mEuiccManager = null;
     private TelephonyManager mTelephonyManager = null;
+    private CarrierConfigManager mCarrierConfigMgr = null;
 
     public ONSProfileConfigurator(Context context) {
         mContext = context;
@@ -45,12 +48,19 @@ public class ONSProfileConfigurator {
     /**
      * Check if the given subscription is a CBRS supported carrier.
      */
-    public boolean isPSIMforCBRSCarrier(SubscriptionInfo subInfo) {
-        String mcc = subInfo.getMccString();
-        String mnc = subInfo.getMncString();
+    public boolean isOpportunisticDataAutoProvisioningSupported(SubscriptionInfo subInfo) {
+        if (mCarrierConfigMgr == null) {
+            mCarrierConfigMgr = mContext.getSystemService(CarrierConfigManager.class);
+        }
 
-        //TODO: fetch MNC/MCC from the carrier config
-        //TODO: Check if subInfo is CBRS carrier
-        return true;//temp
+        PersistableBundle config = mCarrierConfigMgr.getConfigForSubId(subInfo.getSubscriptionId());
+        Boolean oppDataAutoProvSupported = (Boolean) config.get(
+                CarrierConfigManager.KEY_CARRIER_SUPPORTS_OPP_DATA_AUTO_PROVISIONING_BOOL);
+
+        if (!oppDataAutoProvSupported || !oppDataAutoProvSupported) {
+            return false;
+        }
+
+        return true;
     }
 }
