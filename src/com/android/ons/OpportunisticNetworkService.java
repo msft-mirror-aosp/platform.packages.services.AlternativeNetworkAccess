@@ -113,7 +113,6 @@ public class OpportunisticNetworkService extends Service {
                 case MSG_SIM_STATE_CHANGE:
                     synchronized (mLock) {
                         handleSimStateChange();
-                        mONSProfileActivator.handleSimStateChange();
                     }
                     break;
                 default:
@@ -135,6 +134,8 @@ public class OpportunisticNetworkService extends Service {
     @VisibleForTesting
     protected void handleSimStateChange() {
         logDebug("SIM state changed");
+        mONSProfileActivator.handleSimStateChange();
+
         ONSConfigInput carrierAppConfigInput = mONSConfigInputHashMap.get(CARRIER_APP_CONFIG_NAME);
         if (carrierAppConfigInput == null) {
             return;
