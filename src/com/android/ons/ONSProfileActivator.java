@@ -88,7 +88,8 @@ public class ONSProfileActivator {
         }
 
         //if pSIM is not a CBRS carrier
-        if (mONSProfileConfigurator.isPSIMforCBRSCarrier(primaryCBRSSubInfo) == false) {
+        if (!mONSProfileConfigurator.isOpportunisticDataAutoProvisioningSupported(
+                primaryCBRSSubInfo)) {
             return Result.ERR_CARRIER_DOESNT_SUPPORT_CBRS;
         }
 
@@ -107,6 +108,7 @@ public class ONSProfileActivator {
         ERR_DUAL_ACTIVE_SUBSCRIPTIONS,//Both the slots have primary SIMs
         ERR_NO_SIM_INSERTED,
         ERR_SINGLE_ACTIVE_OPPORTUNISTIC_SIM,
+        ERR_OPPORTUNISTIC_SIM_WITHOUT_PSIM_DISABLED,
         ERR_UNKNOWN;
     }
 }
