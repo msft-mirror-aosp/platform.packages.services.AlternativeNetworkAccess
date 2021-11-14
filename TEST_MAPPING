@@ -1,0 +1,22 @@
+{
+  "presubmit": [
+    {
+      "name": "ONSBaseTest"
+    },
+    {
+      "name": "ONSNetworkScanCtlrTest"
+    },
+    {
+      "name": "ONSProfileActivatorTest"
+    },
+    {
+      "name": "ONSProfileConfiguratorTest"
+    },
+    {
+      "name": "ONSProfileSelectorTest"
+    },
+    {
+      "name": "OpportunisticNetworkServiceTest"
+    }
+  ]
+}
