@@ -113,7 +113,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
         ONSProfileActivator mONSProfileActivator = new ONSProfileActivator(mMockContext,
                 mMockSubManager, mMockONSProfileConfigurator);
 
-        assertEquals(ONSProfileActivator.Result.ERR_SINGLE_ACTIVE_OPPORTUNISTIC_SIM,
+        assertEquals(ONSProfileActivator.Result.ERR_OPPORTUNISTIC_SIM_WITHOUT_PSIM_DISABLED,
                 mONSProfileActivator.handleSimStateChange());
     }
 
@@ -122,7 +122,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
         doReturn(true).when(mMockONSProfileConfigurator).isESIMSupported();
         doReturn(true).when(mMockONSProfileConfigurator).isMultiSIMPhone();
         doReturn(false).when(mMockONSProfileConfigurator)
-                .isPSIMforCBRSCarrier(mMockPrimaryCBRSSubInfo);
+                .isOpportunisticDataAutoProvisioningSupported(mMockPrimaryCBRSSubInfo);
         doReturn(mMockactiveSubInfos).when(mMockSubManager).getActiveSubscriptionInfoList();
         doReturn(1).when(mMockactiveSubInfos).size();
         doReturn(mMockPrimaryCBRSSubInfo).when(mMockactiveSubInfos).get(0);
