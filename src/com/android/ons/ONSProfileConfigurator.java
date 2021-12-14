@@ -20,6 +20,10 @@ import android.annotation.TestApi;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.NetworkRequest;
 import android.os.Handler;
 import android.os.Message;
 import android.os.ParcelUuid;
@@ -47,22 +51,33 @@ public class ONSProfileConfigurator {
     private static final int REQUEST_CODE_ACTIVATE_SUB = 1;
     private static final int REQUEST_CODE_DELETE_SUB = 2;
     private static final String PREF_NAME = "ONSProvisioning";
+    private static final String PREF_RETRY_DOWNLOAD_WHEN_CONNECTED = "RetryDownloadAfterReconnect";
 
     private final Context mContext;
     private SubscriptionManager mSubManager;
     private EuiccManager mEuiccManager;
     private TelephonyManager mTelephonyManager;
     private CarrierConfigManager mCarrierConfigMgr = null;
-    private DeleteOppSubscriptionListener mDeleteOppSubListener = null;
     private static Handler sDeleteSubscriptionCallbackHandler = null;
+    private ONSProfConfigListener mONSProfConfigListener = null;
+    private boolean mRetryDownloadWhenNWConnected = false;
+    private boolean mIsInternetConnAvailable = false;
 
-    public ONSProfileConfigurator(Context context, DeleteOppSubscriptionListener listener) {
+    public ONSProfileConfigurator(Context context, ONSProfConfigListener listener) {
         mContext = context;
-        mDeleteOppSubListener = listener;
+        mONSProfConfigListener = listener;
         mSubManager = mContext.getSystemService(SubscriptionManager.class);
         mEuiccManager = mContext.getSystemService(EuiccManager.class);
         mTelephonyManager = mContext.getSystemService(TelephonyManager.class);
         mCarrierConfigMgr = mContext.getSystemService(CarrierConfigManager.class);
+
+        //Monitor internet connection.
+        final ConnectivityManager connMgr = (ConnectivityManager) context
+                .getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkRequest request = new NetworkRequest.Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+                .build();
+        connMgr.registerNetworkCallback(request, new NetworkCallback());
 
         //Delete Subscription response handler.
         if (sDeleteSubscriptionCallbackHandler == null) {
@@ -70,8 +85,8 @@ public class ONSProfileConfigurator {
                 @Override
                 public void handleMessage(Message msg) {
                     if (msg.what == REQUEST_CODE_DELETE_SUB) {
-                        if (mDeleteOppSubListener != null) {
-                            mDeleteOppSubListener.onOppSubscriptionDeleted(msg.arg1);
+                        if (mONSProfConfigListener != null) {
+                            mONSProfConfigListener.onOppSubscriptionDeleted(msg.arg1);
                         }
                     }
                 }
@@ -408,9 +423,59 @@ public class ONSProfileConfigurator {
     }
 
     /**
-     * Listener interface to notify when an opportunistic subscription is deleted.
+     * Saves flag to retry download when internet connection is restored.
+     *
+     * @param enable       - true - retry download when connected.
+     *                     false - No retry required.
      */
-    public interface DeleteOppSubscriptionListener {
+    public void setRetryDownloadWhenConnectedFlag(boolean enable) {
+        mRetryDownloadWhenNWConnected = enable;
+    }
+
+    /**
+     * Retrieves flag to retry download when internet connection is restored.
+     */
+    public boolean getRetryDownloadWhenConnectedFlag() {
+        return mRetryDownloadWhenNWConnected;
+    }
+
+    public boolean isInternetConnectionAvailable() {
+        return mIsInternetConnAvailable;
+    }
+
+    private class NetworkCallback extends ConnectivityManager.NetworkCallback {
+        @Override
+        public void onAvailable(Network network) {
+            super.onAvailable(network);
+            Log.d(TAG, "Internet connection available");
+            mIsInternetConnAvailable = true;
+            if (mONSProfConfigListener != null) {
+                mONSProfConfigListener.onConnectionChanged(true);
+            }
+        }
+
+        @Override
+        public void onLost(Network network) {
+            super.onLost(network);
+            Log.d(TAG, "Internet connection lost");
+            mIsInternetConnAvailable = false;
+            if (mONSProfConfigListener != null) {
+                mONSProfConfigListener.onConnectionChanged(false);
+            }
+        }
+    }
+
+    /**
+     * Listener interface to notify delete subscription operation and internet connection status
+     * change.
+     */
+    public interface ONSProfConfigListener {
+
+        /**
+         * Change in connection is used to decide whether to send download request or differ.
+         * When connection is available, previously pending download is resumed.
+         */
+        void onConnectionChanged(boolean bConnected);
 
         /**
          * Called when the delete subscription request is processed successfully.
