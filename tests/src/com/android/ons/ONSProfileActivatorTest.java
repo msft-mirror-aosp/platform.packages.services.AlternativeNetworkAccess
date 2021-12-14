@@ -113,7 +113,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
         ONSProfileActivator mONSProfileActivator = new ONSProfileActivator(mMockContext,
                 mMockSubManager, mMockONSProfileConfigurator);
 
-        assertEquals(ONSProfileActivator.Result.ERR_OPPORTUNISTIC_SIM_WITHOUT_PSIM_DISABLED,
+        assertEquals(ONSProfileActivator.Result.ERR_SINGLE_ACTIVE_OPPORTUNISTIC_SIM,
                 mONSProfileActivator.handleSimStateChange());
     }
 
