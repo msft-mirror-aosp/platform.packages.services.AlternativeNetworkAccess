@@ -58,6 +58,10 @@ public class ONSProfileActivator {
      */
     public Result handleSimStateChange() {
 
+        if (!mONSProfileConfigurator.isONSAutoProvisioningEnabled()) {
+            return Result.ERR_AUTO_PROVISIONING_DISABLED;
+        }
+
         //Check if device supports eSIM
         if (mONSProfileConfigurator.isESIMSupported() == false) {
             return Result.ERR_ESIM_NOT_SUPPORTED;
@@ -102,6 +106,7 @@ public class ONSProfileActivator {
 
     public enum Result {
         SUCCESS,
+        ERR_AUTO_PROVISIONING_DISABLED,
         ERR_ESIM_NOT_SUPPORTED,
         ERR_MULTISIM_NOT_SUPPORTED,
         ERR_CARRIER_DOESNT_SUPPORT_CBRS,
