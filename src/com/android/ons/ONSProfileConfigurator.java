@@ -63,4 +63,24 @@ public class ONSProfileConfigurator {
 
         return true;
     }
+
+    /**
+     * Checks if device is in single SIM mode.
+     */
+    public boolean isDeviceInSingleSIMMode() {
+        return (mTelephonyManager.getActiveModemCount() <= 1);
+    }
+
+    /**
+     * Switches device to multi SIM mode. Checks if reboot is required before switching and
+     * configuration is triggered only if reboot not required.
+     */
+    public boolean switchToMultiSIMMode() {
+        if (!mTelephonyManager.doesSwitchMultiSimConfigTriggerReboot()) {
+            mTelephonyManager.switchMultiSimConfig(2);
+            return true;
+        }
+
+        return false;
+    }
 }
