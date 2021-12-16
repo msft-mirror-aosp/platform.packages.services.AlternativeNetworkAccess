@@ -97,15 +97,6 @@ public class ONSProfileActivator {
             return Result.ERR_CARRIER_DOESNT_SUPPORT_CBRS;
         }
 
-        if (mONSProfileConfigurator.isDeviceInSingleSIMMode()) {
-            if (!mONSProfileConfigurator.switchToMultiSIMMode()) {
-                return Result.ERR_CANNOT_SWITCH_TO_DUAL_SIM_MODE;
-            }
-
-            //Once device is Switched to Dual-SIM Mode, handleSimStateChange is triggered.
-            return Result.ERR_SWITCHED_TO_DUAL_SIM_MODE;
-        }
-
         //cbrs eSIM is not active.
         //TODO: Check if cbrs eSIM is downloaded but disabled. (if yes then, activate).
         //TODO: else download cbrs eSIM (call download API of ONSProfileDownloader)
@@ -122,8 +113,6 @@ public class ONSProfileActivator {
         ERR_DUAL_ACTIVE_SUBSCRIPTIONS,//Both the slots have primary SIMs
         ERR_NO_SIM_INSERTED,
         ERR_SINGLE_ACTIVE_OPPORTUNISTIC_SIM,
-        ERR_CANNOT_SWITCH_TO_DUAL_SIM_MODE,
-        ERR_SWITCHED_TO_DUAL_SIM_MODE,
         ERR_OPPORTUNISTIC_SIM_WITHOUT_PSIM_DISABLED,
         ERR_UNKNOWN;
     }
