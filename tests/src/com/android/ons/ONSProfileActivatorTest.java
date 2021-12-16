@@ -42,8 +42,6 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
     @Mock
     List<SubscriptionInfo> mMockactiveSubInfos;
     @Mock
-    SubscriptionInfo mMockSubInfo;
-    @Mock
     SubscriptionInfo mMockPrimaryCBRSSubInfo;
 
     @Before
@@ -72,46 +70,6 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
                 new ONSProfileActivator(mMockContext, mMockSubManager, mMockONSProfileConfigurator);
 
         assertEquals(ONSProfileActivator.Result.ERR_MULTISIM_NOT_SUPPORTED,
-                mONSProfileActivator.handleSimStateChange());
-    }
-
-    @Test
-    public void testONSProfileActivatorWithDeviceSwitchToDualSIMModeFailed() {
-        doReturn(true).when(mMockONSProfileConfigurator).isESIMSupported();
-        doReturn(true).when(mMockONSProfileConfigurator).isMultiSIMPhone();
-        doReturn(mMockactiveSubInfos).when(mMockSubManager).getActiveSubscriptionInfoList();
-        doReturn(1).when(mMockactiveSubInfos).size();
-        doReturn(mMockSubInfo).when(mMockactiveSubInfos).get(0);
-        doReturn(false).when(mMockSubInfo).isOpportunistic();
-        doReturn(true).when(mMockONSProfileConfigurator)
-                .isOpportunisticDataAutoProvisioningSupported(mMockSubInfo);
-        doReturn(true).when(mMockONSProfileConfigurator).isDeviceInSingleSIMMode();
-        doReturn(false).when(mMockONSProfileConfigurator).switchToMultiSIMMode();
-
-        ONSProfileActivator mONSProfileActivator =
-                new ONSProfileActivator(mMockContext, mMockSubManager, mMockONSProfileConfigurator);
-
-        assertEquals(ONSProfileActivator.Result.ERR_CANNOT_SWITCH_TO_DUAL_SIM_MODE,
-                mONSProfileActivator.handleSimStateChange());
-    }
-
-    @Test
-    public void testONSProfileActivatorWithDeviceSwitchToDualSIMModeSuccess() {
-        doReturn(true).when(mMockONSProfileConfigurator).isESIMSupported();
-        doReturn(true).when(mMockONSProfileConfigurator).isMultiSIMPhone();
-        doReturn(mMockactiveSubInfos).when(mMockSubManager).getActiveSubscriptionInfoList();
-        doReturn(1).when(mMockactiveSubInfos).size();
-        doReturn(mMockSubInfo).when(mMockactiveSubInfos).get(0);
-        doReturn(false).when(mMockSubInfo).isOpportunistic();
-        doReturn(true).when(mMockONSProfileConfigurator)
-                .isOpportunisticDataAutoProvisioningSupported(mMockSubInfo);
-        doReturn(true).when(mMockONSProfileConfigurator).isDeviceInSingleSIMMode();
-        doReturn(true).when(mMockONSProfileConfigurator).switchToMultiSIMMode();
-
-        ONSProfileActivator mONSProfileActivator =
-                new ONSProfileActivator(mMockContext, mMockSubManager, mMockONSProfileConfigurator);
-
-        assertEquals(ONSProfileActivator.Result.ERR_SWITCHED_TO_DUAL_SIM_MODE,
                 mONSProfileActivator.handleSimStateChange());
     }
 
