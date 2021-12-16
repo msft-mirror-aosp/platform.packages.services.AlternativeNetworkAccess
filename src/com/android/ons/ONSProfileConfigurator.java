@@ -46,6 +46,15 @@ public class ONSProfileConfigurator {
     }
 
     /**
+     * Fetches ONS auto provisioning enable flag from device configuration.
+     * ONS auto provisioning feature executes only when the flag is set to true in device
+     * configuration.
+     */
+    public boolean isONSAutoProvisioningEnabled() {
+        return mContext.getResources().getBoolean(R.bool.enable_ons_auto_provisioning);
+    }
+
+    /**
      * Check if the given subscription is a CBRS supported carrier.
      */
     public boolean isOpportunisticDataAutoProvisioningSupported(SubscriptionInfo subInfo) {
