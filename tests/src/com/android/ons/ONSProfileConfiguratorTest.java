@@ -19,6 +19,7 @@ package com.android.ons;
 import static org.mockito.Mockito.doReturn;
 
 import android.content.Context;
+import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.telephony.euicc.EuiccManager;
 
@@ -29,59 +30,83 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 public class ONSProfileConfiguratorTest extends ONSBaseTest {
-    private static final String TAG = ONSProfileConfiguratorTest.class.getName();
+    private static final String TAG = com.android.ons.ONSProfileConfiguratorTest.class.getName();
+    @Mock
+    private Context mMockContext;
+    @Mock
+    SubscriptionManager mMockSubManager;
     @Mock
     EuiccManager mMockEuiccManager;
     @Mock
     TelephonyManager mMockTelephonyManager;
     @Mock
-    private Context mMockContext;
+    private ONSProfileActivator mMockONSProfileActivator;
 
     @Before
     public void setUp() throws Exception {
         super.setUp("ONSTest");
         MockitoAnnotations.initMocks(this);
-
-        doReturn(Context.EUICC_SERVICE).when(mMockContext).getSystemServiceName(EuiccManager.class);
-        doReturn(Context.TELEPHONY_SERVICE).when(mMockContext)
-                .getSystemServiceName(TelephonyManager.class);
-
-        doReturn(mMockEuiccManager).when(mMockContext).getSystemService(Context.EUICC_SERVICE);
-        doReturn(mMockTelephonyManager).when(mMockContext)
-                .getSystemService(Context.TELEPHONY_SERVICE);
     }
 
     @Test
-    public void testONSProfileConfiguratorWithESIMNotSupported() {
+    public void testESIMNotSupported() {
         doReturn(false).when(mMockEuiccManager).isEnabled();
-
-        ONSProfileConfigurator mOnsProfileConfigurator = new ONSProfileConfigurator(mMockContext);
+        ONSProfileConfigurator mOnsProfileConfigurator = new ONSProfileConfigurator(mMockContext,
+                mMockSubManager, mMockEuiccManager, mMockTelephonyManager);
         assertEquals(false, mOnsProfileConfigurator.isESIMSupported());
     }
 
     @Test
-    public void testONSProfileConfiguratorWithESIMSupported() {
+    public void testESIMSupported() {
         doReturn(true).when(mMockEuiccManager).isEnabled();
 
-        ONSProfileConfigurator mOnsProfileConfigurator = new ONSProfileConfigurator(mMockContext);
+        ONSProfileConfigurator mOnsProfileConfigurator = new ONSProfileConfigurator(mMockContext,
+                mMockSubManager, mMockEuiccManager, mMockTelephonyManager);
         assertEquals(true, mOnsProfileConfigurator.isESIMSupported());
     }
 
     @Test
-    public void testONSProfileConfiguratorWithMultiSIMNotSupported() {
+    public void testMultiSIMNotSupported() {
         doReturn(1).when(mMockTelephonyManager).getActiveModemCount();
 
-        ONSProfileConfigurator mOnsProfileConfigurator = new ONSProfileConfigurator(mMockContext);
+        ONSProfileConfigurator mOnsProfileConfigurator = new ONSProfileConfigurator(mMockContext,
+                mMockSubManager, mMockEuiccManager, mMockTelephonyManager);
         assertEquals(false, mOnsProfileConfigurator.isMultiSIMPhone());
     }
 
     @Test
-    public void testONSProfileConfiguratorWithMultiSIMSupported() {
-        doReturn(2).when(mMockTelephonyManager).getActiveModemCount();
+    public void testMultiSIMSupported() {
+        doReturn(2).when(mMockTelephonyManager).getSupportedModemCount();
 
-        ONSProfileConfigurator mOnsProfileConfigurator = new ONSProfileConfigurator(mMockContext);
+        ONSProfileConfigurator mOnsProfileConfigurator = new ONSProfileConfigurator(mMockContext,
+                mMockSubManager, mMockEuiccManager, mMockTelephonyManager);
         assertEquals(true, mOnsProfileConfigurator.isMultiSIMPhone());
     }
+
+    /* This test case needs application context instead of mock Context. Need to investigate how to
+    get application in Junit test class.
+    @Test
+    public void testRetryDownloadAfterRebootFlagSaving() {
+        ONSProfileConfigurator mOnsProfileConfigurator = new ONSProfileConfigurator(
+                Context.getApplicationContext(), mMockSubManager, mMockEuiccManager,
+                mMockTelephonyManager);
+
+        mOnsProfileConfigurator.setRetryDownloadAfterReboot(true, 1);
+        assertEquals(true, mOnsProfileConfigurator.getRetryDownloadAfterReboot());
+        assertEquals(1, mOnsProfileConfigurator.getRetryDownloadpSIMSubId());
+
+        mOnsProfileConfigurator.setRetryDownloadAfterReboot(false, 1);
+        assertEquals(false, mOnsProfileConfigurator.getRetryDownloadAfterReboot());
+        assertEquals(1, mOnsProfileConfigurator.getRetryDownloadpSIMSubId());
+
+        mOnsProfileConfigurator.setRetryDownloadAfterReboot(true, 2);
+        assertEquals(true, mOnsProfileConfigurator.getRetryDownloadAfterReboot());
+        assertEquals(1, mOnsProfileConfigurator.getRetryDownloadpSIMSubId());
+
+        mOnsProfileConfigurator.setRetryDownloadAfterReboot(false, 2);
+        assertEquals(false, mOnsProfileConfigurator.getRetryDownloadAfterReboot());
+        assertEquals(1, mOnsProfileConfigurator.getRetryDownloadpSIMSubId());
+    }*/
 
     @After
     public void tearDown() throws Exception {
