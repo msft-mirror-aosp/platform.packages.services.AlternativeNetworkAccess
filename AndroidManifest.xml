@@ -46,6 +46,9 @@
             <intent-filter>
                 <action android:name="android.telephony.action.MULTI_SIM_CONFIG_CHANGED"/>
             </intent-filter>
+            <intent-filter>
+                <action android:name="com.android.ons.ONSProfileResultReceiver.CALLBACK"/>
+            </intent-filter>
         </receiver>
     </application>
 </manifest>
