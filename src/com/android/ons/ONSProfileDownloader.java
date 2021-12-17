@@ -128,6 +128,13 @@ public class ONSProfileDownloader {
 
     private void downloadProfile(int primarySubId) {
         Log.d(TAG, "downloadProfile");
+        if (!mONSProfileConfig.isInternetConnectionAvailable()) {
+            Log.d(TAG, "No internet connection. Download will be attempted when "
+                    + "connection is restored");
+            mONSProfileConfig.setRetryDownloadWhenConnectedFlag(true);
+            return;
+        }
+
         //Get SMDP address from carrier configuration
         String smdpAddr = mONSProfileConfig.getSMDPServerAddress(primarySubId);
         if (smdpAddr == null || smdpAddr.length() <= 0) {
