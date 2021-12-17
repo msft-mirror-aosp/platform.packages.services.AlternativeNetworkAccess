@@ -30,7 +30,7 @@ import java.util.List;
  * @brief ONSProfileActivator makes sure that the CBRS profile is downloaded, activated and grouped
  * when an opportunistic data enabled pSIM is inserted.
  */
-public class ONSProfileActivator {
+public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfigListener {
     private static final String TAG = ONSProfileActivator.class.getName();
     private final Context mContext;
     private final ONSProfileConfigurator mONSProfileConfig;
@@ -39,8 +39,7 @@ public class ONSProfileActivator {
     public ONSProfileActivator(Context context) {
         mContext = context;
 
-        mONSProfileConfig = new ONSProfileConfigurator(mContext,
-                pSIMId -> onOpportunisticSubscriptionDeleted(pSIMId));
+        mONSProfileConfig = new ONSProfileConfigurator(mContext, this);
         mONSProfileDownloader = new ONSProfileDownloader(mContext, mONSProfileConfig,
                 primarySubId -> onDownloadComplete(primarySubId));
     }
@@ -63,6 +62,21 @@ public class ONSProfileActivator {
         Result res = provisionCBRS();
         Log.d(TAG, res.toString());
         return res;
+    }
+
+    @Override
+    public void onConnectionChanged(boolean bConnected) {
+        if (bConnected && mONSProfileConfig != null
+                && mONSProfileConfig.getRetryDownloadWhenConnectedFlag()) {
+            Log.d(TAG, "Internet connection restored. Retrying CBRS auto provisioning");
+            Result res = provisionCBRS();
+            Log.d(TAG, res.toString());
+        }
+    }
+
+    @Override
+    public void onOppSubscriptionDeleted(int pSIMId) {
+        provisionCBRS();
     }
 
     /**
@@ -187,6 +201,7 @@ public class ONSProfileActivator {
     }
 
     private void onDownloadComplete(int primarySubId) {
+        mONSProfileConfig.setRetryDownloadWhenConnectedFlag(false);
         SubscriptionInfo opportunisticESIM = mONSProfileConfig
                 .findOpportunisticSubscription(primarySubId);
         if (opportunisticESIM == null) {
@@ -203,10 +218,6 @@ public class ONSProfileActivator {
         } else {
             Log.d(TAG, "ESIM downloaded but pSIM is not active or removed");
         }
-    }
-
-    private void onOpportunisticSubscriptionDeleted(int pSIMId) {
-        provisionCBRS();
     }
 
     public enum Result {
