@@ -242,7 +242,8 @@ public class OpportunisticNetworkService extends Service {
          */
         public void setPreferredDataSubscriptionId(int subId, boolean needValidation,
                 ISetOpportunisticDataCallback callbackStub, String callingPackage) {
-            logDebug("setPreferredDataSubscriptionId subId:" + subId + "callingPackage: " + callingPackage);
+            logDebug("setPreferredDataSubscriptionId subId:" + subId
+                    + " callingPackage:" + callingPackage);
             if (!enforceModifyPhoneStatePermission(mContext)) {
                 TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(mContext,
                         mSubscriptionManager.getDefaultSubscriptionId(), "setPreferredDataSubscriptionId");
