@@ -40,19 +40,20 @@ public class ONSProfileResultReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         String action = intent.getAction();
+        int resultCode = getResultCode();
         if (action.equals(ACTION_ONS_RESULT_CALLBACK)) {
             if (intent.getStringExtra(Intent.EXTRA_COMPONENT_NAME).equals(
                     ONSProfileConfigurator.class.getName())) {
 
                 WorkerThread workerThread = new WorkerThread(goAsync(),
                         () -> ONSProfileConfigurator.onCallbackIntentReceived(
-                                context, intent, getResultCode()));
+                                context, intent, resultCode));
                 workerThread.start();
             } else if (intent.getStringExtra(Intent.EXTRA_COMPONENT_NAME).equals(
                     ONSProfileDownloader.class.getName())) {
                 WorkerThread workerThread = new WorkerThread(goAsync(),
                         () -> ONSProfileDownloader.onCallbackIntentReceived(
-                                intent, getResultCode()));
+                                intent, resultCode));
                 workerThread.start();
             }
         } else if (action.equals(TelephonyManager.ACTION_MULTI_SIM_CONFIG_CHANGED)) {

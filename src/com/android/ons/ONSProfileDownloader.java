@@ -85,19 +85,32 @@ public class ONSProfileDownloader {
                             Log.e(TAG, "Max download retry attempted. Stopping retry");
                             return;
                         }
-                        //Calculate next retry time delay.
-                        int maxTime = (int) Math.pow(2, mDownloadRetryCount * mONSProfileConfig
-                                .getDownloadRetryBackOffTimerVal(msg.arg2));
+                        /**
+                         * Timer value is calculated using "Exponential Backoff retry" algorithm.
+                         * When the first download failure occurs, retry download after
+                         * BACKOFF_TIMER_VALUE [Carrier Configurable] seconds.
+                         *
+                         * If download fails again then, retry after either BACKOFF_TIMER_VALUE,
+                         * 2xBACKOFF_TIMER_VALUE, or 3xBACKOFF_TIMER_VALUE seconds.
+                         *
+                         * In general after the cth failed attempt, retry after k *
+                         * BACKOFF_TIMER_VALUE seconds, where k is a random integer between 1 and
+                         * 2^c − 1. Max c value is KEY_ESIM_MAX_DOWNLOAD_RETRY_ATTEMPTS_INT
+                         * [Carrier configurable]
+                         */
+                        //Calculate 2^c − 1
+                        int maxTime = (int) Math.pow(2, mDownloadRetryCount) - 1;
 
-                        //Random select delay, add +1 for non-zero value and convert to millisecond
-                        int delay = (mRandom.nextInt(maxTime) + 1) * 1000;
+                        //Random value between (1 & 2^c − 1) and convert to millisecond
+                        int delay = ((mRandom.nextInt(maxTime) + 1)) * mONSProfileConfig
+                                .getDownloadRetryBackOffTimerVal(msg.arg2) * 1000;
 
                         Message retryMsg = new Message();
                         retryMsg.what = REQUEST_CODE_DOWNLOAD_RETRY;
                         retryMsg.arg2 = msg.arg2; //arg2 -> primary SubId
-                        sendMessageDelayed(msg, delay);
+                        sendMessageDelayed(retryMsg, delay);
 
-                        Log.d(TAG, "Download failed. Retry after :" + delay + "Secs");
+                        Log.d(TAG, "Download failed. Retry after :" + delay + "MilliSecs");
                     }
                 }
                 break;
