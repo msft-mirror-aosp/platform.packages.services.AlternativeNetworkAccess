@@ -21,6 +21,7 @@ import android.content.Context;
 import android.os.ParcelUuid;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
+import android.telephony.TelephonyManager;
 import android.util.Log;
 
 import java.util.List;
@@ -59,6 +60,11 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
      * Called when SIM state changes. Triggers CBRS Auto provisioning.
      */
     public Result handleSimStateChange() {
+        final int simState = mONSProfileConfig.getTelephonyManager().getSimState();
+        if (simState != TelephonyManager.SIM_STATE_READY) {
+            return Result.ERR_SIM_NOT_READY;
+        }
+
         Result res = provisionCBRS();
         Log.d(TAG, res.toString());
         return res;
@@ -231,6 +237,7 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
         ERR_SINGLE_ACTIVE_OPPORTUNISTIC_SIM,
         ERR_CANNOT_SWITCH_TO_DUAL_SIM_MODE,
         ERR_SWITCHED_TO_DUAL_SIM_MODE,
+        ERR_SIM_NOT_READY,
         ERR_UNKNOWN;
     }
 }
