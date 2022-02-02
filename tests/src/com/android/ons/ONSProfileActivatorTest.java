@@ -68,8 +68,20 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
         doReturn(mMockSubManager).when(mMockONSProfileConfigurator).getSubscriptionManager();
         doReturn(mMockEuiCCManager).when(mMockONSProfileConfigurator).getEuiccManager();
         doReturn(mMockTeleManager).when(mMockONSProfileConfigurator).getTelephonyManager();
+        doReturn(TelephonyManager.SIM_STATE_READY).when(mMockTeleManager).getSimState();
         doReturn(mMockCarrierConfigManager).when(mMockONSProfileConfigurator)
                 .getCarrierConfigManager();
+    }
+
+    @Test
+    public void testSIMNotReady() {
+        doReturn(TelephonyManager.SIM_STATE_NOT_READY).when(mMockTeleManager).getSimState();
+
+        final ONSProfileActivator mONSProfileActivator = new ONSProfileActivator(mMockContext,
+                mMockONSProfileConfigurator, mMockONSProfileDownloader);
+
+        assertEquals(ONSProfileActivator.Result.ERR_SIM_NOT_READY,
+                mONSProfileActivator.handleSimStateChange());
     }
 
     @Test
