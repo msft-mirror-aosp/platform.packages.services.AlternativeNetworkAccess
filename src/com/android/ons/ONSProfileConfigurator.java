@@ -71,26 +71,30 @@ public class ONSProfileConfigurator {
         mTelephonyManager = mContext.getSystemService(TelephonyManager.class);
         mCarrierConfigMgr = mContext.getSystemService(CarrierConfigManager.class);
 
-        //Monitor internet connection.
-        final ConnectivityManager connMgr = (ConnectivityManager) context
-                .getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkRequest request = new NetworkRequest.Builder()
-                .addCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-                .build();
-        connMgr.registerNetworkCallback(request, new NetworkCallback());
+        //Don't monitor internet connection or create handler if Auto-Provisioning is disabled.
+        if (isONSAutoProvisioningEnabled()) {
+            //Monitor internet connection.
+            final ConnectivityManager connMgr = (ConnectivityManager) context
+                    .getSystemService(Context.CONNECTIVITY_SERVICE);
+            NetworkRequest request = new NetworkRequest.Builder()
+                    .addCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+                    .build();
+            connMgr.registerNetworkCallback(request, new NetworkCallback());
 
-        //Delete Subscription response handler.
-        if (sDeleteSubscriptionCallbackHandler == null) {
-            sDeleteSubscriptionCallbackHandler = new Handler(mContext.getMainLooper()) {
-                @Override
-                public void handleMessage(Message msg) {
-                    if (msg.what == REQUEST_CODE_DELETE_SUB) {
-                        if (mONSProfConfigListener != null) {
-                            mONSProfConfigListener.onOppSubscriptionDeleted(msg.arg1);
+
+            //Delete Subscription response handler.
+            if (sDeleteSubscriptionCallbackHandler == null) {
+                sDeleteSubscriptionCallbackHandler = new Handler(mContext.getMainLooper()) {
+                    @Override
+                    public void handleMessage(Message msg) {
+                        if (msg.what == REQUEST_CODE_DELETE_SUB) {
+                            if (mONSProfConfigListener != null) {
+                                mONSProfConfigListener.onOppSubscriptionDeleted(msg.arg1);
+                            }
                         }
                     }
-                }
-            };
+                };
+            }
         }
     }
 
