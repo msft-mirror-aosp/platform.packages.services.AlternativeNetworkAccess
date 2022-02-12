@@ -27,6 +27,8 @@ import android.telephony.euicc.EuiccManager;
 import android.util.Log;
 import android.util.Pair;
 
+import com.android.internal.annotations.VisibleForTesting;
+
 import java.util.Random;
 import java.util.Stack;
 
@@ -38,17 +40,18 @@ public class ONSProfileDownloader {
 
     private static final String TAG = ONSProfileDownloader.class.getName();
 
-    private static final String PARAM_PRIMARY_SUBID = "PrimarySubscriptionID";
-    private static final String PARAM_REQUEST_TYPE = "REQUEST";
-    private static final int REQUEST_CODE_DOWNLOAD_SUB = 1;
-    private static final int REQUEST_CODE_DOWNLOAD_RETRY = 2;
+    @VisibleForTesting protected static final String PARAM_PRIMARY_SUBID = "PrimarySubscriptionID";
+    @VisibleForTesting protected static final String PARAM_REQUEST_TYPE = "REQUEST";
+    @VisibleForTesting protected static final int REQUEST_CODE_DOWNLOAD_SUB = 1;
+    @VisibleForTesting protected static final int REQUEST_CODE_DOWNLOAD_RETRY = 2;
     private static IONSProfileDownloaderListener sListener;
     private static Handler sHandler;
 
     private final Context mContext;
     private final ONSProfileConfigurator mONSProfileConfig;
 
-    private enum DownloadRetryOperationCode{
+    @VisibleForTesting
+    protected enum DownloadRetryOperationCode{
         DOWNLOAD_SUCCESSFUL,
         STOP_RETRY_UNTIL_SIM_STATE_CHANGE,
         DELETE_INACTIVE_OPP_ESIM_IF_EXISTS,
@@ -136,7 +139,8 @@ public class ONSProfileDownloader {
             }
         }
 
-        private DownloadRetryOperationCode getOperationCode(int resultCode, int detailedErrCode,
+        @VisibleForTesting
+        protected DownloadRetryOperationCode getOperationCode(int resultCode, int detailedErrCode,
                                                             int operationCode, int errorCode) {
 
             if (operationCode == EuiccManager.OPERATION_DOWNLOAD) {
@@ -173,7 +177,7 @@ public class ONSProfileDownloader {
 
                 //8.1 - eUICC, 4.8 - Insufficient Memory
                 // eUICC does not have sufficient space for this Profile.
-                if (errCode.equals(Pair.create("8.1", "4.8"))) {
+                if (errCode.equals(Pair.create("8.1.0", "4.8"))) {
                     return DownloadRetryOperationCode.DELETE_INACTIVE_OPP_ESIM_IF_EXISTS;
                 }
 
@@ -214,7 +218,8 @@ public class ONSProfileDownloader {
             Log.d(TAG, "Download failed. Retry after :" + delay + "MilliSecs");
         }
 
-        private int calculateBackoffDelay(int retryCount, int backoffTimerVal) {
+        @VisibleForTesting
+        protected int calculateBackoffDelay(int retryCount, int backoffTimerVal) {
             /**
              * Timer value is calculated using "Exponential Backoff retry" algorithm.
              * When the first download failure occurs, retry download after
@@ -251,7 +256,8 @@ public class ONSProfileDownloader {
         return;
     }
 
-    private void downloadProfile(int primarySubId) {
+    @VisibleForTesting
+    protected void downloadProfile(int primarySubId) {
         Log.d(TAG, "downloadProfile");
         if (!mONSProfileConfig.isInternetConnectionAvailable()) {
             Log.d(TAG, "No internet connection. Download will be attempted when "
@@ -291,7 +297,8 @@ public class ONSProfileDownloader {
      * @return a pair containing SubjectCode[5.2.6.1] and ReasonCode[5.2.6.2] from GSMA (SGP.22
      * v2.2)
      */
-    private Pair<String, String> decodeSmdxSubjectAndReasonCode(int resultCode) {
+    @VisibleForTesting
+    protected static Pair<String, String> decodeSmdxSubjectAndReasonCode(int resultCode) {
         final int numOfSections = 6;
         final int bitsPerSection = 4;
         final int sectionMask = 0xF;
