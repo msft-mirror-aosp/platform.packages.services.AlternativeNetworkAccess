@@ -30,7 +30,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 public class ONSProfileConfiguratorTest extends ONSBaseTest {
-    private static final String TAG = com.android.ons.ONSProfileConfiguratorTest.class.getName();
+    private static final String TAG = ONSProfileConfiguratorTest.class.getName();
     @Mock
     private Context mMockContext;
     @Mock
