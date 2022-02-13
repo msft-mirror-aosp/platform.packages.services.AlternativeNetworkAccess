@@ -71,26 +71,30 @@ public class ONSProfileConfigurator {
         mTelephonyManager = mContext.getSystemService(TelephonyManager.class);
         mCarrierConfigMgr = mContext.getSystemService(CarrierConfigManager.class);
 
-        //Monitor internet connection.
-        final ConnectivityManager connMgr = (ConnectivityManager) context
-                .getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkRequest request = new NetworkRequest.Builder()
-                .addCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-                .build();
-        connMgr.registerNetworkCallback(request, new NetworkCallback());
+        //Don't monitor internet connection or create handler if Auto-Provisioning is disabled.
+        if (isONSAutoProvisioningEnabled()) {
+            //Monitor internet connection.
+            final ConnectivityManager connMgr = (ConnectivityManager) context
+                    .getSystemService(Context.CONNECTIVITY_SERVICE);
+            NetworkRequest request = new NetworkRequest.Builder()
+                    .addCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+                    .build();
+            connMgr.registerNetworkCallback(request, new NetworkCallback());
 
-        //Delete Subscription response handler.
-        if (sDeleteSubscriptionCallbackHandler == null) {
-            sDeleteSubscriptionCallbackHandler = new Handler(mContext.getMainLooper()) {
-                @Override
-                public void handleMessage(Message msg) {
-                    if (msg.what == REQUEST_CODE_DELETE_SUB) {
-                        if (mONSProfConfigListener != null) {
-                            mONSProfConfigListener.onOppSubscriptionDeleted(msg.arg1);
+
+            //Delete Subscription response handler.
+            if (sDeleteSubscriptionCallbackHandler == null) {
+                sDeleteSubscriptionCallbackHandler = new Handler(mContext.getMainLooper()) {
+                    @Override
+                    public void handleMessage(Message msg) {
+                        if (msg.what == REQUEST_CODE_DELETE_SUB) {
+                            if (mONSProfConfigListener != null) {
+                                mONSProfConfigListener.onOppSubscriptionDeleted(msg.arg1);
+                            }
                         }
                     }
-                }
-            };
+                };
+            }
         }
     }
 
@@ -110,7 +114,7 @@ public class ONSProfileConfigurator {
      * @param intent
      * @param resultCode
      */
-    public static void onCallbackIntentReceived(Context context, Intent intent, int resultCode) {
+    public static void onCallbackIntentReceived(Intent intent, int resultCode) {
         int reqCode = intent.getIntExtra(PARAM_REQUEST_TYPE, 0);
         switch (reqCode) {
             case REQUEST_CODE_ACTIVATE_SUB: {
@@ -271,7 +275,7 @@ public class ONSProfileConfigurator {
      * @return true - If an eSIM is delete request is sent.
      *          false - If no suitable eSIM is found for delete.
      */
-    private boolean deleteOldOpportunisticESimsOfPSIMOperator(int pSIMSubId) {
+    boolean deleteOldOpportunisticESimsOfPSIMOperator(int pSIMSubId) {
         Log.d(TAG, "deleteOldOpportunisticESimsOfPSIMOperator");
         //1.Get the list of all opportunistic carrier-ids of newly inserted pSIM from carrier config
         PersistableBundle config = getCarrierConfigManager().getConfigForSubId(pSIMSubId);
