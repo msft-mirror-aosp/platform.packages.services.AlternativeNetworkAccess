@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 package com.android.ons;
+
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -39,21 +40,22 @@ public class ONSProfileResultReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        String action = intent.getAction();
         int resultCode = getResultCode();
-        if (action.equals(ACTION_ONS_RESULT_CALLBACK)) {
-            if (intent.getStringExtra(Intent.EXTRA_COMPONENT_NAME).equals(
-                    ONSProfileConfigurator.class.getName())) {
+        callbackIntentHandler(intent, resultCode);
+    }
 
+    protected void callbackIntentHandler(Intent intent, int resultCode) {
+        String action = intent.getAction();
+        String compName = intent.getStringExtra(Intent.EXTRA_COMPONENT_NAME);
+
+        if (action.equals(ACTION_ONS_RESULT_CALLBACK)) {
+            if (compName.equals(ONSProfileConfigurator.class.getName())) {
                 WorkerThread workerThread = new WorkerThread(goAsync(),
-                        () -> ONSProfileConfigurator.onCallbackIntentReceived(
-                                context, intent, resultCode));
+                        () -> ONSProfileConfigurator.onCallbackIntentReceived(intent, resultCode));
                 workerThread.start();
-            } else if (intent.getStringExtra(Intent.EXTRA_COMPONENT_NAME).equals(
-                    ONSProfileDownloader.class.getName())) {
+            } else if (compName.equals(ONSProfileDownloader.class.getName())) {
                 WorkerThread workerThread = new WorkerThread(goAsync(),
-                        () -> ONSProfileDownloader.onCallbackIntentReceived(
-                                intent, resultCode));
+                        () -> ONSProfileDownloader.onCallbackIntentReceived(intent, resultCode));
                 workerThread.start();
             }
         } else if (action.equals(TelephonyManager.ACTION_MULTI_SIM_CONFIG_CHANGED)) {
