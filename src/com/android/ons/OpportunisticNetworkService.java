@@ -30,6 +30,7 @@ import android.os.Binder;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.os.Message;
 import android.os.RemoteException;
 import android.os.TelephonyServiceManager.ServiceRegisterer;
@@ -61,6 +62,7 @@ public class OpportunisticNetworkService extends Service {
     private TelephonyManager mTelephonyManager;
     @VisibleForTesting protected SubscriptionManager mSubscriptionManager;
     private ONSProfileActivator mONSProfileActivator;
+    private Handler mHandler = null;
 
     private final Object mLock = new Object();
     @VisibleForTesting protected boolean mIsEnabled;
@@ -106,21 +108,48 @@ public class OpportunisticNetworkService extends Service {
         }
     };
 
-    private Handler mHandler = new Handler() {
-        @Override
-        public void handleMessage(Message msg) {
-            switch (msg.what) {
-                case MSG_SIM_STATE_CHANGE:
-                    synchronized (mLock) {
-                        handleSimStateChange();
-                    }
-                    break;
-                default:
-                    log("invalid message");
-                    break;
+    private void createMsgHandler() {
+        mHandler = new Handler(Looper.myLooper()) {
+            @Override
+            public void handleMessage(Message msg) {
+                switch (msg.what) {
+                    case MSG_SIM_STATE_CHANGE:
+                        synchronized (mLock) {
+                            handleSimStateChange();
+                        }
+                        break;
+                    default:
+                        log("invalid message");
+                        break;
+                }
+            }
+        };
+    }
+
+    private void startWorkerThreadAndInit() {
+        Thread thread = new Thread() {
+            @Override
+            public void run() {
+                super.run();
+                Looper.prepare();
+                Looper looper = Looper.myLooper();
+                initialize(getBaseContext());
+                synchronized (this) {
+                    this.notifyAll();
+                }
+                looper.loop();
+            }
+        };
+
+        thread.start();
+        synchronized (thread) {
+            try {
+                thread.wait();
+            } catch (Exception e) {
+                log(e.getLocalizedMessage());
             }
         }
-    };
+    }
 
     private static boolean enforceModifyPhoneStatePermission(Context context) {
         if (context.checkCallingOrSelfPermission(android.Manifest.permission.MODIFY_PHONE_STATE)
@@ -337,7 +366,7 @@ public class OpportunisticNetworkService extends Service {
 
     @Override
     public void onCreate() {
-        initialize(getBaseContext());
+        startWorkerThreadAndInit();
 
         /* register the service */
         ServiceRegisterer opportunisticNetworkServiceRegisterer = TelephonyFrameworkInitializer
@@ -350,23 +379,51 @@ public class OpportunisticNetworkService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent == null) {
-            return START_STICKY;
-        }
+        mHandler.post(new Runnable() {
 
-        String action = intent.getAction();
-        if (action == null) {
-            return START_STICKY;
-        }
-
-        switch (action) {
-            case ONSProfileSelector.ACTION_SUB_SWITCH: {
-                if (mProfileSelector != null) {
-                    mProfileSelector.onSubSwitchComplete(intent);
-                }
-                break;
+            private Intent mIntent = null;
+            Runnable setIntent(Intent intent) {
+                mIntent = intent;
+                return this;
             }
-        }
+
+            @Override
+            public void run() {
+                if (mIntent == null) {
+                    return;
+                }
+
+                String action = mIntent.getAction();
+                if (action == null) {
+                    return;
+                }
+
+                switch (action) {
+                    case ONSProfileSelector.ACTION_SUB_SWITCH: {
+                        if (mProfileSelector != null) {
+                            mProfileSelector.onSubSwitchComplete(mIntent);
+                        }
+                    }
+                    break;
+
+                    case ONSProfileDownloader.ACTION_ONS_ESIM_DOWNLOAD: {
+                        mONSProfileActivator.getONSProfileDownloader().onCallbackIntentReceived(
+                                mIntent.getParcelableExtra(Intent.EXTRA_INTENT),
+                                mIntent.getIntExtra(ONSProfileResultReceiver.EXTRA_RESULT_CODE, 0)
+                        );
+                    }
+                    break;
+
+                    case ONSProfileConfigurator.ACTION_ONS_ESIM_CONFIG: {
+                        mONSProfileActivator.getONSProfileConfigurator().onCallbackIntentReceived(
+                                mIntent.getParcelableExtra(Intent.EXTRA_INTENT),
+                                mIntent.getIntExtra(ONSProfileResultReceiver.EXTRA_RESULT_CODE, 0)
+                        );
+                    }
+                    break;
+                }
+            }
+        }.setIntent(intent));
 
         return START_STICKY;
     }
@@ -375,7 +432,7 @@ public class OpportunisticNetworkService extends Service {
     public void onDestroy() {
         super.onDestroy();
         log("Destroyed Successfully...");
-
+        mHandler.getLooper().quitSafely();
     }
 
     /**
@@ -387,6 +444,7 @@ public class OpportunisticNetworkService extends Service {
     @VisibleForTesting
     protected void initialize(Context context) {
         mContext = context;
+        createMsgHandler();
         mTelephonyManager = TelephonyManager.from(mContext);
         mProfileSelector = new ONSProfileSelector(mContext, mProfileSelectionCallback);
         mSharedPref = mContext.createDeviceProtectedStorageContext().getSharedPreferences(
