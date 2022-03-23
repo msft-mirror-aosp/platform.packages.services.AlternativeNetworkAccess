@@ -34,49 +34,21 @@ import android.util.Log;
 public class ONSProfileResultReceiver extends BroadcastReceiver {
 
     private static final String TAG = ONSProfileResultReceiver.class.getName();
-
-    public static final String ACTION_ONS_RESULT_CALLBACK =
-            "com.android.ons.ONSProfileResultReceiver.CALLBACK";
+    public static final String EXTRA_RESULT_CODE = "ResultCode";
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        int resultCode = getResultCode();
-        callbackIntentHandler(intent, resultCode);
-    }
-
-    protected void callbackIntentHandler(Intent intent, int resultCode) {
         String action = intent.getAction();
-        String compName = intent.getStringExtra(Intent.EXTRA_COMPONENT_NAME);
-
-        if (action.equals(ACTION_ONS_RESULT_CALLBACK)) {
-            if (compName.equals(ONSProfileConfigurator.class.getName())) {
-                WorkerThread workerThread = new WorkerThread(goAsync(),
-                        () -> ONSProfileConfigurator.onCallbackIntentReceived(intent, resultCode));
-                workerThread.start();
-            } else if (compName.equals(ONSProfileDownloader.class.getName())) {
-                WorkerThread workerThread = new WorkerThread(goAsync(),
-                        () -> ONSProfileDownloader.onCallbackIntentReceived(intent, resultCode));
-                workerThread.start();
-            }
-        } else if (action.equals(TelephonyManager.ACTION_MULTI_SIM_CONFIG_CHANGED)) {
+        if (action.equals(TelephonyManager.ACTION_MULTI_SIM_CONFIG_CHANGED)) {
             int simCount = intent.getIntExtra(TelephonyManager.EXTRA_ACTIVE_SIM_SUPPORTED_COUNT, 0);
             Log.d(TAG, "Mutli-SIM configed for " + simCount + "SIMs");
-        }
-    }
-
-    private class WorkerThread extends Thread {
-        private final PendingResult mAsyncResult;
-        private final Runnable mRunnable;
-        WorkerThread(PendingResult asyncResult, Runnable runnable) {
-            mAsyncResult = asyncResult;
-            mRunnable = runnable;
-        }
-
-        @Override
-        public void run() {
-            super.run();
-            mRunnable.run();
-            mAsyncResult.finish();
+        } else {
+            Intent serviceIntent = new Intent(context, OpportunisticNetworkService.class);
+            serviceIntent.setAction(intent.getAction());
+            serviceIntent.putExtra(EXTRA_RESULT_CODE, getResultCode());
+            serviceIntent.putExtra(Intent.EXTRA_INTENT, intent);
+            context.startService(serviceIntent);
+            Log.d(TAG, "Service Started:" + serviceIntent.toString());
         }
     }
 }
