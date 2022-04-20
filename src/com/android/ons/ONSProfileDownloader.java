@@ -218,12 +218,14 @@ public class ONSProfileDownloader {
     protected void downloadProfile(int primarySubId) {
         Log.d(TAG, "downloadProfile");
 
-        //Get SMDP address from carrier configuration
-        String smdpAddr = getSMDPServerAddress(primarySubId);
-        if (smdpAddr == null || smdpAddr.length() <= 0) {
+        //Get SMDP address from carrier configuration.
+        String smdpAddress = getSMDPServerAddress(primarySubId);
+        if (smdpAddress == null || smdpAddress.length() <= 0) {
             return;
         }
 
+        //Generate Activation code 1${SM-DP+ FQDN}$
+        String activationCode = "1$" + smdpAddress + "$";
         Intent intent = new Intent(mContext, ONSProfileResultReceiver.class);
         intent.setAction(ACTION_ONS_ESIM_DOWNLOAD);
         intent.putExtra(PARAM_REQUEST_TYPE, REQUEST_CODE_DOWNLOAD_SUB);
@@ -232,8 +234,8 @@ public class ONSProfileDownloader {
                 REQUEST_CODE_DOWNLOAD_SUB, intent, PendingIntent.FLAG_MUTABLE);
 
         Log.d(TAG, "Download Request sent to EUICC Manager");
-        mEuiccManager.downloadSubscription(DownloadableSubscription.forActivationCode(smdpAddr),
-                true, callbackIntent);
+        mEuiccManager.downloadSubscription(DownloadableSubscription.forActivationCode(
+                activationCode), true, callbackIntent);
     }
 
     /**
