@@ -25,6 +25,7 @@
     <protected-broadcast android:name="com.android.ons.action.CONFIG" />
 
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
     <application
         android:process="com.android.phone"
         android:persistent="true">
@@ -54,6 +55,9 @@
             </intent-filter>
             <intent-filter>
                 <action android:name="com.android.ons.action.ESIM_CONFIG"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.telephony.action.CARRIER_CONFIG_CHANGED"/>
             </intent-filter>
         </receiver>
     </application>
