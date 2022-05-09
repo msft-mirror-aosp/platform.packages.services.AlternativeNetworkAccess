@@ -16,18 +16,17 @@
 
 package com.android.ons;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyZeroInteractions;
 
-import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Looper;
+import android.os.PersistableBundle;
+import android.telephony.CarrierConfigManager;
 import android.telephony.SubscriptionInfo;
 import android.telephony.euicc.DownloadableSubscription;
 import android.telephony.euicc.EuiccManager;
@@ -48,11 +47,13 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
     @Mock
     Context mMockContext;
     @Mock
+    EuiccManager mMockEUICCManager;
+    @Mock
     SubscriptionInfo mMockSubInfo;
     @Mock
-    private ONSProfileConfigurator mMockONSProfileConfig;
+    CarrierConfigManager mMockCarrierConfigManager;
     @Mock
-    EuiccManager mMockEUICCManager;
+    private ONSProfileConfigurator mMockONSProfileConfig;
     @Mock
     ONSProfileDownloader.IONSProfileDownloaderListener mMockDownloadListener;
 
@@ -60,7 +61,7 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
     public void setUp() throws Exception {
         super.setUp("ONSTest");
         MockitoAnnotations.initMocks(this);
-        doReturn(mMockEUICCManager).when(mMockONSProfileConfig).getEuiccManager();
+        Looper.prepare();
     }
 
     static class WorkerThread extends Thread {
@@ -86,29 +87,16 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
     }
 
     @Test
-    public void testNoInternetDownloadRequest() {
-        doReturn(false).when(mMockONSProfileConfig).isInternetConnectionAvailable();
-        doReturn(TEST_SUB_ID).when(mMockSubInfo).getSubscriptionId();
-
-        Looper.prepare();
-        ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mMockContext,
-                mMockONSProfileConfig, null);
-        onsProfileDownloader.downloadOpportunisticESIM(mMockSubInfo);
-
-        verify(mMockONSProfileConfig).setRetryDownloadWhenConnectedFlag(true);
-        verify(mMockEUICCManager, never()).downloadSubscription(null, true, null);
-    }
-
-    @Test
     public void testNullSMDPAddress() {
-        doReturn(true).when(mMockONSProfileConfig).isInternetConnectionAvailable();
-        doReturn(null).when(mMockONSProfileConfig).getSMDPServerAddress(TEST_SUB_ID);
         doReturn(TEST_SUB_ID).when(mMockSubInfo).getSubscriptionId();
+        PersistableBundle config = new PersistableBundle();
+        config.putString(CarrierConfigManager.KEY_SMDP_SERVER_ADDRESS_STRING, null);
+        doReturn(config).when(mMockCarrierConfigManager).getConfigForSubId(TEST_SUB_ID);
 
-        Looper.prepare();
-        ONSProfileDownloader onsProfileDownloader =
-                new ONSProfileDownloader(mMockContext, mMockONSProfileConfig, null);
-        onsProfileDownloader.downloadOpportunisticESIM(mMockSubInfo);
+        ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mMockContext,
+                mMockCarrierConfigManager, mMockEUICCManager, mMockONSProfileConfig, null);
+
+        onsProfileDownloader.downloadProfile(mMockSubInfo.getSubscriptionId());
 
         verify(mMockEUICCManager, never()).downloadSubscription(null, true, null);
     }
@@ -126,16 +114,24 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
                             lock.notify();
                         }
                     }
+
+                    @Override
+                    public void onDownloadError(
+                            ONSProfileDownloader.DownloadRetryOperationCode operationCode,
+                            int pSIMSubId) {
+
+                    }
                 };
 
         Runnable runnable = new Runnable() {
             @Override
             public void run() {
-                ONSProfileDownloader onsProfileDownloader =
-                        new ONSProfileDownloader(mMockContext, mMockONSProfileConfig, mListener);
+                ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mMockContext,
+                        mMockCarrierConfigManager, mMockEUICCManager, mMockONSProfileConfig,
+                        mListener);
 
                 Intent intent = new Intent(mContext, ONSProfileResultReceiver.class);
-                intent.setAction(ONSProfileResultReceiver.ACTION_ONS_RESULT_CALLBACK);
+                intent.setAction(ONSProfileDownloader.ACTION_ONS_ESIM_DOWNLOAD);
                 intent.putExtra(Intent.EXTRA_COMPONENT_NAME, ONSProfileDownloader.class.getName());
                 intent.putExtra(ONSProfileDownloader.PARAM_PRIMARY_SUBID, TEST_SUB_ID);
                 intent.putExtra(ONSProfileDownloader.PARAM_REQUEST_TYPE,
@@ -143,7 +139,7 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
                 intent.putExtra(EuiccManager.EXTRA_EMBEDDED_SUBSCRIPTION_OPERATION_CODE,
                         EuiccManager.OPERATION_DOWNLOAD);
 
-                ONSProfileDownloader.onCallbackIntentReceived(intent,
+                onsProfileDownloader.onCallbackIntentReceived(intent,
                         EuiccManager.EMBEDDED_SUBSCRIPTION_RESULT_OK);
             }
         };
@@ -164,26 +160,27 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
 
     @Test
     public void testDownloadFailureUnresolvableError() {
-        doReturn(2).when(mMockONSProfileConfig).getDownloadRetryMaxAttemptsVal(TEST_SUB_ID);
-        doReturn(1).when(mMockONSProfileConfig).getDownloadRetryBackOffTimerVal(TEST_SUB_ID);
-        doReturn(mMockEUICCManager).when(mMockONSProfileConfig).getEuiccManager();
-        doReturn(true).when(mMockONSProfileConfig).isInternetConnectionAvailable();
-        doReturn(TEST_SMDP_ADDRESS).when(mMockONSProfileConfig).getSMDPServerAddress(TEST_SUB_ID);
+        PersistableBundle config = new PersistableBundle();
+        config.putInt(CarrierConfigManager.KEY_ESIM_DOWNLOAD_RETRY_BACKOFF_TIMER_SEC_INT, 1);
+        config.putInt(CarrierConfigManager.KEY_ESIM_MAX_DOWNLOAD_RETRY_ATTEMPTS_INT, 2);
+        config.putString(CarrierConfigManager.KEY_SMDP_SERVER_ADDRESS_STRING, TEST_SMDP_ADDRESS);
+        doReturn(config).when(mMockCarrierConfigManager).getConfigForSubId(TEST_SUB_ID);
 
         Runnable runnable = new Runnable() {
             @Override
             public void run() {
-                ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mContext,
-                        mMockONSProfileConfig, mMockDownloadListener);
+                ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mMockContext,
+                        mMockCarrierConfigManager, mMockEUICCManager, mMockONSProfileConfig,
+                        mMockDownloadListener);
 
                 Intent intent = new Intent(mContext, ONSProfileResultReceiver.class);
-                intent.setAction(ONSProfileResultReceiver.ACTION_ONS_RESULT_CALLBACK);
+                intent.setAction(ONSProfileDownloader.ACTION_ONS_ESIM_DOWNLOAD);
                 intent.putExtra(Intent.EXTRA_COMPONENT_NAME, ONSProfileDownloader.class.getName());
                 intent.putExtra(ONSProfileDownloader.PARAM_PRIMARY_SUBID, TEST_SUB_ID);
                 intent.putExtra(ONSProfileDownloader.PARAM_REQUEST_TYPE,
                         ONSProfileDownloader.REQUEST_CODE_DOWNLOAD_SUB);
 
-                ONSProfileDownloader.onCallbackIntentReceived(intent,
+                onsProfileDownloader.onCallbackIntentReceived(intent,
                         EuiccManager.EMBEDDED_SUBSCRIPTION_RESULT_ERROR);
             }
         };
@@ -207,12 +204,12 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
         Runnable runnable = new Runnable() {
             @Override
             public void run() {
-                ONSProfileDownloader onsProfileDownloader =
-                        new ONSProfileDownloader(mMockContext, mMockONSProfileConfig,
-                                mMockDownloadListener);
+                ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mMockContext,
+                        mMockCarrierConfigManager, mMockEUICCManager, mMockONSProfileConfig,
+                        mMockDownloadListener);
 
                 Intent intent = new Intent(mContext, ONSProfileResultReceiver.class);
-                intent.setAction(ONSProfileResultReceiver.ACTION_ONS_RESULT_CALLBACK);
+                intent.setAction(ONSProfileDownloader.ACTION_ONS_ESIM_DOWNLOAD);
                 intent.putExtra(Intent.EXTRA_COMPONENT_NAME, ONSProfileDownloader.class.getName());
                 intent.putExtra(ONSProfileDownloader.PARAM_PRIMARY_SUBID, TEST_SUB_ID);
                 intent.putExtra(ONSProfileDownloader.PARAM_REQUEST_TYPE,
@@ -222,7 +219,7 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
                 intent.putExtra(EuiccManager.EXTRA_EMBEDDED_SUBSCRIPTION_ERROR_CODE,
                         EuiccManager.ERROR_EUICC_INSUFFICIENT_MEMORY);
 
-                ONSProfileDownloader.onCallbackIntentReceived(intent,
+                onsProfileDownloader.onCallbackIntentReceived(intent,
                         EuiccManager.EMBEDDED_SUBSCRIPTION_RESULT_RESOLVABLE_ERROR);
             }
         };
@@ -236,27 +233,32 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
             Log.e(TAG, e.getMessage());
         }
 
-        verify(mMockONSProfileConfig).deleteOpportunisticSubscriptions(TEST_SUB_ID);
+        verify(mMockDownloadListener).onDownloadError(
+                ONSProfileDownloader.DownloadRetryOperationCode.ERR_MEMORY_FULL,
+                TEST_SUB_ID);
         workerThread.exit();
     }
 
     @Test
     public void testDownloadFailureConnectionError() {
-
-        doReturn(2).when(mMockONSProfileConfig).getDownloadRetryMaxAttemptsVal(TEST_SUB_ID);
-        doReturn(1).when(mMockONSProfileConfig).getDownloadRetryBackOffTimerVal(TEST_SUB_ID);
-        doReturn(mMockEUICCManager).when(mMockONSProfileConfig).getEuiccManager();
-        doReturn(true).when(mMockONSProfileConfig).isInternetConnectionAvailable();
-        doReturn(TEST_SMDP_ADDRESS).when(mMockONSProfileConfig).getSMDPServerAddress(TEST_SUB_ID);
+        PersistableBundle config = new PersistableBundle();
+        config.putInt(CarrierConfigManager.KEY_ESIM_DOWNLOAD_RETRY_BACKOFF_TIMER_SEC_INT, 1);
+        config.putInt(CarrierConfigManager.KEY_ESIM_MAX_DOWNLOAD_RETRY_ATTEMPTS_INT, 2);
+        config.putString(CarrierConfigManager.KEY_SMDP_SERVER_ADDRESS_STRING, TEST_SMDP_ADDRESS);
+        doReturn(config).when(mMockCarrierConfigManager).getConfigForSubId(TEST_SUB_ID);
+        doNothing().when(mMockDownloadListener).onDownloadError(
+                ONSProfileDownloader.DownloadRetryOperationCode.ERR_RETRY_DOWNLOAD,
+                TEST_SUB_ID);
 
         Runnable runnable = new Runnable() {
             @Override
             public void run() {
                 ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mContext,
-                        mMockONSProfileConfig, mMockDownloadListener);
+                        mMockCarrierConfigManager, mMockEUICCManager, mMockONSProfileConfig,
+                        mMockDownloadListener);
 
                 Intent intent = new Intent(mContext, ONSProfileResultReceiver.class);
-                intent.setAction(ONSProfileResultReceiver.ACTION_ONS_RESULT_CALLBACK);
+                intent.setAction(ONSProfileDownloader.ACTION_ONS_ESIM_DOWNLOAD);
                 intent.putExtra(Intent.EXTRA_COMPONENT_NAME, ONSProfileDownloader.class.getName());
                 intent.putExtra(ONSProfileDownloader.PARAM_PRIMARY_SUBID, TEST_SUB_ID);
                 intent.putExtra(ONSProfileDownloader.PARAM_REQUEST_TYPE,
@@ -266,7 +268,7 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
                 intent.putExtra(EuiccManager.EXTRA_EMBEDDED_SUBSCRIPTION_OPERATION_CODE,
                         EuiccManager.OPERATION_DOWNLOAD);
 
-                ONSProfileDownloader.onCallbackIntentReceived(intent,
+                onsProfileDownloader.onCallbackIntentReceived(intent,
                         EuiccManager.EMBEDDED_SUBSCRIPTION_RESULT_RESOLVABLE_ERROR);
             }
         };
@@ -286,31 +288,33 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
         String testActCode = DownloadableSubscription.forActivationCode(TEST_SMDP_ADDRESS)
                 .getEncodedActivationCode();
 
-        verify(mMockEUICCManager).downloadSubscription(
-                argThat((DownloadableSubscription ds) ->
-                        ds.getEncodedActivationCode().equals(testActCode)),
-                eq(true), any(PendingIntent.class));
+        verify(mMockDownloadListener).onDownloadError(
+                ONSProfileDownloader.DownloadRetryOperationCode.ERR_RETRY_DOWNLOAD,
+                TEST_SUB_ID);
 
         workerThread.exit();
     }
 
     @Test
     public void testDownloadFailureTimeout() {
-
-        doReturn(2).when(mMockONSProfileConfig).getDownloadRetryMaxAttemptsVal(TEST_SUB_ID);
-        doReturn(1).when(mMockONSProfileConfig).getDownloadRetryBackOffTimerVal(TEST_SUB_ID);
-        doReturn(mMockEUICCManager).when(mMockONSProfileConfig).getEuiccManager();
-        doReturn(true).when(mMockONSProfileConfig).isInternetConnectionAvailable();
-        doReturn(TEST_SMDP_ADDRESS).when(mMockONSProfileConfig).getSMDPServerAddress(TEST_SUB_ID);
+        PersistableBundle config = new PersistableBundle();
+        config.putInt(CarrierConfigManager.KEY_ESIM_DOWNLOAD_RETRY_BACKOFF_TIMER_SEC_INT, 1);
+        config.putInt(CarrierConfigManager.KEY_ESIM_MAX_DOWNLOAD_RETRY_ATTEMPTS_INT, 2);
+        config.putString(CarrierConfigManager.KEY_SMDP_SERVER_ADDRESS_STRING, TEST_SMDP_ADDRESS);
+        doReturn(config).when(mMockCarrierConfigManager).getConfigForSubId(TEST_SUB_ID);
+        doNothing().when(mMockDownloadListener).onDownloadError(
+                ONSProfileDownloader.DownloadRetryOperationCode.ERR_RETRY_DOWNLOAD,
+                TEST_SUB_ID);
 
         Runnable runnable = new Runnable() {
             @Override
             public void run() {
                 ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mContext,
-                        mMockONSProfileConfig, mMockDownloadListener);
+                        mMockCarrierConfigManager, mMockEUICCManager, mMockONSProfileConfig,
+                        mMockDownloadListener);
 
                 Intent intent = new Intent(mContext, ONSProfileResultReceiver.class);
-                intent.setAction(ONSProfileResultReceiver.ACTION_ONS_RESULT_CALLBACK);
+                intent.setAction(ONSProfileDownloader.ACTION_ONS_ESIM_DOWNLOAD);
                 intent.putExtra(Intent.EXTRA_COMPONENT_NAME, ONSProfileDownloader.class.getName());
                 intent.putExtra(ONSProfileDownloader.PARAM_PRIMARY_SUBID, TEST_SUB_ID);
                 intent.putExtra(ONSProfileDownloader.PARAM_REQUEST_TYPE,
@@ -320,7 +324,7 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
                 intent.putExtra(EuiccManager.EXTRA_EMBEDDED_SUBSCRIPTION_ERROR_CODE,
                         EuiccManager.ERROR_TIME_OUT);
 
-                ONSProfileDownloader.onCallbackIntentReceived(intent,
+                onsProfileDownloader.onCallbackIntentReceived(intent,
                         EuiccManager.EMBEDDED_SUBSCRIPTION_RESULT_RESOLVABLE_ERROR);
             }
         };
@@ -340,31 +344,33 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
         String testActCode = DownloadableSubscription.forActivationCode(TEST_SMDP_ADDRESS)
                 .getEncodedActivationCode();
 
-        verify(mMockEUICCManager).downloadSubscription(
-                argThat((DownloadableSubscription ds) ->
-                        ds.getEncodedActivationCode().equals(testActCode)),
-                eq(true), any(PendingIntent.class));
+        verify(mMockDownloadListener).onDownloadError(
+                ONSProfileDownloader.DownloadRetryOperationCode.ERR_RETRY_DOWNLOAD,
+                TEST_SUB_ID);
 
         workerThread.exit();
     }
 
     @Test
     public void testDownloadFailureOperationBusy() {
-
-        doReturn(2).when(mMockONSProfileConfig).getDownloadRetryMaxAttemptsVal(TEST_SUB_ID);
-        doReturn(1).when(mMockONSProfileConfig).getDownloadRetryBackOffTimerVal(TEST_SUB_ID);
-        doReturn(mMockEUICCManager).when(mMockONSProfileConfig).getEuiccManager();
-        doReturn(true).when(mMockONSProfileConfig).isInternetConnectionAvailable();
-        doReturn(TEST_SMDP_ADDRESS).when(mMockONSProfileConfig).getSMDPServerAddress(TEST_SUB_ID);
+        PersistableBundle config = new PersistableBundle();
+        config.putInt(CarrierConfigManager.KEY_ESIM_DOWNLOAD_RETRY_BACKOFF_TIMER_SEC_INT, 1);
+        config.putInt(CarrierConfigManager.KEY_ESIM_MAX_DOWNLOAD_RETRY_ATTEMPTS_INT, 2);
+        config.putString(CarrierConfigManager.KEY_SMDP_SERVER_ADDRESS_STRING, TEST_SMDP_ADDRESS);
+        doReturn(config).when(mMockCarrierConfigManager).getConfigForSubId(TEST_SUB_ID);
+        doNothing().when(mMockDownloadListener).onDownloadError(
+                ONSProfileDownloader.DownloadRetryOperationCode.ERR_RETRY_DOWNLOAD,
+                TEST_SUB_ID);
 
         Runnable runnable = new Runnable() {
             @Override
             public void run() {
                 ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mContext,
-                        mMockONSProfileConfig, mMockDownloadListener);
+                        mMockCarrierConfigManager, mMockEUICCManager, mMockONSProfileConfig,
+                        mMockDownloadListener);
 
                 Intent intent = new Intent(mContext, ONSProfileResultReceiver.class);
-                intent.setAction(ONSProfileResultReceiver.ACTION_ONS_RESULT_CALLBACK);
+                intent.setAction(ONSProfileDownloader.ACTION_ONS_ESIM_DOWNLOAD);
                 intent.putExtra(Intent.EXTRA_COMPONENT_NAME, ONSProfileDownloader.class.getName());
                 intent.putExtra(ONSProfileDownloader.PARAM_PRIMARY_SUBID, TEST_SUB_ID);
                 intent.putExtra(ONSProfileDownloader.PARAM_REQUEST_TYPE,
@@ -374,7 +380,7 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
                 intent.putExtra(EuiccManager.EXTRA_EMBEDDED_SUBSCRIPTION_ERROR_CODE,
                         EuiccManager.ERROR_OPERATION_BUSY);
 
-                ONSProfileDownloader.onCallbackIntentReceived(intent,
+                onsProfileDownloader.onCallbackIntentReceived(intent,
                         EuiccManager.EMBEDDED_SUBSCRIPTION_RESULT_RESOLVABLE_ERROR);
             }
         };
@@ -394,31 +400,33 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
         String testActCode = DownloadableSubscription.forActivationCode(TEST_SMDP_ADDRESS)
                 .getEncodedActivationCode();
 
-        verify(mMockEUICCManager).downloadSubscription(
-                argThat((DownloadableSubscription ds) ->
-                        ds.getEncodedActivationCode().equals(testActCode)),
-                eq(true), any(PendingIntent.class));
+        verify(mMockDownloadListener).onDownloadError(
+                ONSProfileDownloader.DownloadRetryOperationCode.ERR_RETRY_DOWNLOAD,
+                TEST_SUB_ID);
 
         workerThread.exit();
     }
 
     @Test
     public void testDownloadFailureInvalidResponse() {
-
-        doReturn(2).when(mMockONSProfileConfig).getDownloadRetryMaxAttemptsVal(TEST_SUB_ID);
-        doReturn(1).when(mMockONSProfileConfig).getDownloadRetryBackOffTimerVal(TEST_SUB_ID);
-        doReturn(mMockEUICCManager).when(mMockONSProfileConfig).getEuiccManager();
-        doReturn(true).when(mMockONSProfileConfig).isInternetConnectionAvailable();
-        doReturn(TEST_SMDP_ADDRESS).when(mMockONSProfileConfig).getSMDPServerAddress(TEST_SUB_ID);
+        PersistableBundle config = new PersistableBundle();
+        config.putInt(CarrierConfigManager.KEY_ESIM_DOWNLOAD_RETRY_BACKOFF_TIMER_SEC_INT, 1);
+        config.putInt(CarrierConfigManager.KEY_ESIM_MAX_DOWNLOAD_RETRY_ATTEMPTS_INT, 2);
+        config.putString(CarrierConfigManager.KEY_SMDP_SERVER_ADDRESS_STRING, TEST_SMDP_ADDRESS);
+        doReturn(config).when(mMockCarrierConfigManager).getConfigForSubId(TEST_SUB_ID);
+        doNothing().when(mMockDownloadListener).onDownloadError(
+                ONSProfileDownloader.DownloadRetryOperationCode.ERR_RETRY_DOWNLOAD,
+                TEST_SUB_ID);
 
         Runnable runnable = new Runnable() {
             @Override
             public void run() {
                 ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mContext,
-                        mMockONSProfileConfig, mMockDownloadListener);
+                        mMockCarrierConfigManager, mMockEUICCManager, mMockONSProfileConfig,
+                        mMockDownloadListener);
 
                 Intent intent = new Intent(mContext, ONSProfileResultReceiver.class);
-                intent.setAction(ONSProfileResultReceiver.ACTION_ONS_RESULT_CALLBACK);
+                intent.setAction(ONSProfileDownloader.ACTION_ONS_ESIM_DOWNLOAD);
                 intent.putExtra(Intent.EXTRA_COMPONENT_NAME, ONSProfileDownloader.class.getName());
                 intent.putExtra(ONSProfileDownloader.PARAM_PRIMARY_SUBID, TEST_SUB_ID);
                 intent.putExtra(ONSProfileDownloader.PARAM_REQUEST_TYPE,
@@ -428,7 +436,7 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
                 intent.putExtra(EuiccManager.EXTRA_EMBEDDED_SUBSCRIPTION_ERROR_CODE,
                         EuiccManager.ERROR_INVALID_RESPONSE);
 
-                ONSProfileDownloader.onCallbackIntentReceived(intent,
+                onsProfileDownloader.onCallbackIntentReceived(intent,
                         EuiccManager.EMBEDDED_SUBSCRIPTION_RESULT_ERROR);
             }
         };
@@ -442,61 +450,9 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
             e.printStackTrace();
         }
 
-        verifyZeroInteractions(mMockEUICCManager);
-        workerThread.exit();
-    }
-
-    @Test
-    public void testCalculateBackoffDelay() {
-        final Object lock = new Object();
-
-        Runnable runnable = new Runnable() {
-            @Override
-            public void run() {
-                ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mContext,
-                        mMockONSProfileConfig, mMockDownloadListener);
-                ONSProfileDownloader.DownloadHandler downloadHandler =
-                        onsProfileDownloader.new DownloadHandler();
-
-                int delay = downloadHandler.calculateBackoffDelay(1, 1) / 1000;
-                assertEquals(true, (delay >= 1 && delay <= 2));
-
-                Log.i(TAG, "calculateBackoffDelay(2, 1)");
-                delay = downloadHandler.calculateBackoffDelay(2, 1) / 1000;
-                assertEquals(true, (delay >= 1 && delay < 4));
-
-                delay = downloadHandler.calculateBackoffDelay(3, 1) / 1000;
-                assertEquals(true, (delay >= 1 && delay < 8));
-
-                delay = downloadHandler.calculateBackoffDelay(4, 1) / 1000;
-                assertEquals(true, (delay >= 1 && delay < 16));
-
-                delay = downloadHandler.calculateBackoffDelay(1, 2) / 1000;
-                assertEquals(true, (delay >= 1 && delay <= 4));
-
-                delay = downloadHandler.calculateBackoffDelay(1, 3) / 1000;
-                assertEquals(true, (delay >= 1 && delay <= 6));
-
-                delay = downloadHandler.calculateBackoffDelay(2, 2) / 1000;
-                assertEquals(true, (delay >= 2 && delay < 8));
-
-                synchronized (lock) {
-                    lock.notifyAll();
-                }
-            }
-        };
-
-        WorkerThread workerThread = new WorkerThread(runnable);
-        workerThread.start();
-
-        synchronized (lock) {
-            try {
-                lock.wait();
-            } catch (Exception e) {
-                Log.e(TAG, e.getLocalizedMessage());
-            }
-        }
-
+        verify(mMockDownloadListener).onDownloadError(
+                ONSProfileDownloader.DownloadRetryOperationCode.ERR_UNRESOLVABLE,
+                TEST_SUB_ID);
         workerThread.exit();
     }
 
@@ -507,58 +463,60 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
         Runnable runnable = new Runnable() {
             @Override
             public void run() {
-                ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mContext,
-                        mMockONSProfileConfig, mMockDownloadListener);
+                ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mMockContext,
+                        mMockCarrierConfigManager, mMockEUICCManager, mMockONSProfileConfig,
+                        mMockDownloadListener);
+
                 ONSProfileDownloader.DownloadHandler downloadHandler =
                         onsProfileDownloader.new DownloadHandler();
 
                 ONSProfileDownloader.DownloadRetryOperationCode res =
-                        downloadHandler.getOperationCode(
+                        downloadHandler.mapDownloaderErrorCode(
                         EuiccManager.EMBEDDED_SUBSCRIPTION_RESULT_OK, 0,
                         EuiccManager.OPERATION_DOWNLOAD, 0);
                 assertEquals(
                         ONSProfileDownloader.DownloadRetryOperationCode.DOWNLOAD_SUCCESSFUL, res);
 
-                res = downloadHandler.getOperationCode(
+                res = downloadHandler.mapDownloaderErrorCode(
                         EuiccManager.EMBEDDED_SUBSCRIPTION_RESULT_RESOLVABLE_ERROR, 0,
                         EuiccManager.OPERATION_DOWNLOAD,
                         EuiccManager.ERROR_EUICC_INSUFFICIENT_MEMORY);
                 assertEquals(ONSProfileDownloader.DownloadRetryOperationCode
-                        .DELETE_INACTIVE_OPP_ESIM_IF_EXISTS, res);
+                        .ERR_MEMORY_FULL, res);
 
-                res = downloadHandler.getOperationCode(
+                res = downloadHandler.mapDownloaderErrorCode(
                         EuiccManager.EMBEDDED_SUBSCRIPTION_RESULT_RESOLVABLE_ERROR, 0,
                         EuiccManager.OPERATION_DOWNLOAD,
                         EuiccManager.ERROR_TIME_OUT);
                 assertEquals(ONSProfileDownloader.DownloadRetryOperationCode
-                        .RETRY_AFTER_BACKOFF_TIME, res);
+                        .ERR_RETRY_DOWNLOAD, res);
 
-                res = downloadHandler.getOperationCode(
+                res = downloadHandler.mapDownloaderErrorCode(
                         EuiccManager.EMBEDDED_SUBSCRIPTION_RESULT_RESOLVABLE_ERROR, 0,
                         EuiccManager.OPERATION_DOWNLOAD,
                         EuiccManager.ERROR_CONNECTION_ERROR);
                 assertEquals(ONSProfileDownloader.DownloadRetryOperationCode
-                        .RETRY_AFTER_BACKOFF_TIME, res);
+                        .ERR_RETRY_DOWNLOAD, res);
 
-                res = downloadHandler.getOperationCode(
+                res = downloadHandler.mapDownloaderErrorCode(
                         EuiccManager.EMBEDDED_SUBSCRIPTION_RESULT_RESOLVABLE_ERROR, 0,
                         EuiccManager.OPERATION_DOWNLOAD,
                         EuiccManager.ERROR_INVALID_RESPONSE);
                 assertEquals(ONSProfileDownloader.DownloadRetryOperationCode
-                        .STOP_RETRY_UNTIL_SIM_STATE_CHANGE, res);
+                        .ERR_UNRESOLVABLE, res);
 
-                res = downloadHandler.getOperationCode(
+                res = downloadHandler.mapDownloaderErrorCode(
                         EuiccManager.EMBEDDED_SUBSCRIPTION_RESULT_ERROR, 0,
                         EuiccManager.OPERATION_DOWNLOAD,
                         EuiccManager.ERROR_INVALID_RESPONSE);
                 assertEquals(ONSProfileDownloader.DownloadRetryOperationCode
-                        .STOP_RETRY_UNTIL_SIM_STATE_CHANGE, res);
+                        .ERR_UNRESOLVABLE, res);
 
-                res = downloadHandler.getOperationCode(
+                res = downloadHandler.mapDownloaderErrorCode(
                         EuiccManager.EMBEDDED_SUBSCRIPTION_RESULT_ERROR, 0xA810048,
                         EuiccManager.OPERATION_SMDX_SUBJECT_REASON_CODE, 0);
                 assertEquals(ONSProfileDownloader.DownloadRetryOperationCode
-                        .DELETE_INACTIVE_OPP_ESIM_IF_EXISTS, res);
+                        .ERR_MEMORY_FULL, res);
 
                 synchronized (lock) {
                     lock.notifyAll();
