@@ -163,7 +163,6 @@ public class OpportunisticNetworkService extends Service {
     @VisibleForTesting
     protected void handleSimStateChange() {
         logDebug("SIM state changed");
-        mONSProfileActivator.handleSimStateChange();
 
         ONSConfigInput carrierAppConfigInput = mONSConfigInputHashMap.get(CARRIER_APP_CONFIG_NAME);
         if (carrierAppConfigInput == null) {
@@ -421,6 +420,10 @@ public class OpportunisticNetworkService extends Service {
                         );
                     }
                     break;
+
+                    case ONSProfileActivator.ACTION_CARRIER_CONFIG_CHANGED:
+                        mONSProfileActivator.handleCarrierConfigChange();
+                        break;
                 }
             }
         }.setIntent(intent));
