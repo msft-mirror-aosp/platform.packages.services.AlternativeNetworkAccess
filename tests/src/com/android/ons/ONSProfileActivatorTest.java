@@ -16,14 +16,22 @@
 
 package com.android.ons;
 
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 
 import android.content.Context;
+import android.content.res.Resources;
+import android.net.ConnectivityManager;
+import android.net.NetworkCapabilities;
+import android.net.NetworkRequest;
+import android.os.Looper;
+import android.os.PersistableBundle;
 import android.telephony.CarrierConfigManager;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.telephony.euicc.EuiccManager;
+import android.util.Log;
 
 import org.junit.After;
 import org.junit.Before;
@@ -42,9 +50,11 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
     @Mock
     SubscriptionManager mMockSubManager;
     @Mock
-    EuiccManager mMockEuiCCManager;
+    EuiccManager mMockEuiccManager;
     @Mock
     TelephonyManager mMockTeleManager;
+    @Mock
+    ConnectivityManager mMockConnectivityManager;
     @Mock
     CarrierConfigManager mMockCarrierConfigManager;
     @Mock
@@ -59,156 +69,190 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
     SubscriptionInfo mMockSubInfo2;
     @Mock
     List<SubscriptionInfo> mMocksubsInPSIMGroup;
+    @Mock
+    Resources mMockResources;
 
     @Before
     public void setUp() throws Exception {
         super.setUp("ONSTest");
         MockitoAnnotations.initMocks(this);
-
-        doReturn(mMockSubManager).when(mMockONSProfileConfigurator).getSubscriptionManager();
-        doReturn(mMockEuiCCManager).when(mMockONSProfileConfigurator).getEuiccManager();
-        doReturn(mMockTeleManager).when(mMockONSProfileConfigurator).getTelephonyManager();
+        Looper.prepare();
         doReturn(TelephonyManager.SIM_STATE_READY).when(mMockTeleManager).getSimState();
-        doReturn(mMockCarrierConfigManager).when(mMockONSProfileConfigurator)
-                .getCarrierConfigManager();
+        doReturn(mMockResources).when(mMockContext).getResources();
+
+        doReturn(mMockConnectivityManager).when(mMockContext).getSystemService(
+                Context.CONNECTIVITY_SERVICE);
+        NetworkRequest request = new NetworkRequest.Builder().addCapability(
+                NetworkCapabilities.NET_CAPABILITY_VALIDATED).build();
+        doNothing().when(mMockConnectivityManager).registerNetworkCallback(request,
+                new ConnectivityManager.NetworkCallback());
     }
 
-    @Test
+    /*@Test
     public void testSIMNotReady() {
         doReturn(TelephonyManager.SIM_STATE_NOT_READY).when(mMockTeleManager).getSimState();
 
-        final ONSProfileActivator mONSProfileActivator = new ONSProfileActivator(mMockContext,
-                mMockONSProfileConfigurator, mMockONSProfileDownloader);
+        ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
+                mMockSubManager, mMockTeleManager, mMockCarrierConfigManager, mMockEuiccManager,
+                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
 
         assertEquals(ONSProfileActivator.Result.ERR_SIM_NOT_READY,
-                mONSProfileActivator.handleSimStateChange());
-    }
+                onsProfileActivator.handleSimStateChange());
+    }*/
 
     @Test
     public void testONSAutoProvisioningDisabled() {
-        doReturn(false).when(mMockONSProfileConfigurator).isONSAutoProvisioningEnabled();
+        doReturn(TelephonyManager.SIM_STATE_READY).when(mMockTeleManager).getSimState();
+        doReturn(false).when(mMockResources).getBoolean(R.bool.enable_ons_auto_provisioning);
 
-        ONSProfileActivator mONSProfileActivator = new ONSProfileActivator(mMockContext,
-                mMockONSProfileConfigurator, mMockONSProfileDownloader);
+        ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
+                mMockSubManager, mMockTeleManager, mMockCarrierConfigManager, mMockEuiccManager,
+                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
 
         assertEquals(ONSProfileActivator.Result.ERR_AUTO_PROVISIONING_DISABLED,
-                mONSProfileActivator.handleSimStateChange());
+                onsProfileActivator.handleCarrierConfigChange());
     }
 
     @Test
-    //@DisplayName("Device doesn't support eSIM")
     public void testESIMNotSupported() {
-        doReturn(true).when(mMockONSProfileConfigurator).isONSAutoProvisioningEnabled();
-        doReturn(true).when(mMockONSProfileConfigurator).isONSAutoProvisioningEnabled();
-        doReturn(false).when(mMockONSProfileConfigurator).isESIMSupported();
+        doReturn(TelephonyManager.SIM_STATE_READY).when(mMockTeleManager).getSimState();
+        doReturn(true).when(mMockResources).getBoolean(R.bool.enable_ons_auto_provisioning);
+        doReturn(false).when(mMockEuiccManager).isEnabled();
 
-        ONSProfileActivator mONSProfileActivator = new ONSProfileActivator(mMockContext,
-                mMockONSProfileConfigurator, mMockONSProfileDownloader);
+        ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
+                mMockSubManager, mMockTeleManager, mMockCarrierConfigManager, mMockEuiccManager,
+                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
 
         assertEquals(ONSProfileActivator.Result.ERR_ESIM_NOT_SUPPORTED,
-                mONSProfileActivator.handleSimStateChange());
+                onsProfileActivator.handleCarrierConfigChange());
     }
 
     @Test
     //@DisplayName("Single SIM Device with eSIM support")
     public void testMultiSIMNotSupported() {
-        doReturn(true).when(mMockONSProfileConfigurator).isONSAutoProvisioningEnabled();
-        doReturn(true).when(mMockONSProfileConfigurator).isESIMSupported();
-        doReturn(false).when(mMockONSProfileConfigurator).isMultiSIMPhone();
+        doReturn(TelephonyManager.SIM_STATE_READY).when(mMockTeleManager).getSimState();
+        doReturn(true).when(mMockResources).getBoolean(R.bool.enable_ons_auto_provisioning);
+        doReturn(true).when(mMockEuiccManager).isEnabled();
+        doReturn(1).when(mMockTeleManager).getSupportedModemCount();
+        doReturn(2).when(mMockTeleManager).getActiveModemCount();
 
-        ONSProfileActivator mONSProfileActivator = new ONSProfileActivator(mMockContext,
-                mMockONSProfileConfigurator, mMockONSProfileDownloader);
+        ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
+                mMockSubManager, mMockTeleManager, mMockCarrierConfigManager, mMockEuiccManager,
+                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
 
         assertEquals(ONSProfileActivator.Result.ERR_MULTISIM_NOT_SUPPORTED,
-                mONSProfileActivator.handleSimStateChange());
+                onsProfileActivator.handleCarrierConfigChange());
     }
 
     @Test
     public void testDeviceSwitchToDualSIMModeFailed() {
-        doReturn(true).when(mMockONSProfileConfigurator).isONSAutoProvisioningEnabled();
-        doReturn(true).when(mMockONSProfileConfigurator).isESIMSupported();
-        doReturn(true).when(mMockONSProfileConfigurator).isMultiSIMPhone();
+        doReturn(TelephonyManager.SIM_STATE_READY).when(mMockTeleManager).getSimState();
+        doReturn(true).when(mMockResources).getBoolean(R.bool.enable_ons_auto_provisioning);
+        doReturn(true).when(mMockEuiccManager).isEnabled();
+        doReturn(2).when(mMockTeleManager).getSupportedModemCount();
+        doReturn(1).when(mMockTeleManager).getActiveModemCount();
+        doReturn(true).when(mMockTeleManager).doesSwitchMultiSimConfigTriggerReboot();
         doReturn(mMockactiveSubInfos).when(mMockSubManager).getActiveSubscriptionInfoList();
         doReturn(1).when(mMockactiveSubInfos).size();
         doReturn(mMockSubInfo).when(mMockactiveSubInfos).get(0);
         doReturn(1).when(mMockSubInfo).getSubscriptionId();
         doReturn(false).when(mMockSubInfo).isOpportunistic();
-        doReturn(true).when(mMockONSProfileConfigurator)
-                .isOppDataAutoProvisioningSupported(1);
-        doReturn(true).when(mMockONSProfileConfigurator).isDeviceInSingleSIMMode();
-        doReturn(false).when(mMockONSProfileConfigurator).switchToMultiSIMMode();
 
-        ONSProfileActivator mONSProfileActivator = new ONSProfileActivator(mMockContext,
-                        mMockONSProfileConfigurator, mMockONSProfileDownloader);
+        PersistableBundle persistableBundle = new PersistableBundle();
+        persistableBundle.putBoolean(CarrierConfigManager
+                .KEY_CARRIER_SUPPORTS_OPP_DATA_AUTO_PROVISIONING_BOOL, true);
+        doReturn(persistableBundle).when(mMockCarrierConfigManager).getConfigForSubId(1);
+
+        ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
+                mMockSubManager, mMockTeleManager, mMockCarrierConfigManager, mMockEuiccManager,
+                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
 
         assertEquals(ONSProfileActivator.Result.ERR_CANNOT_SWITCH_TO_DUAL_SIM_MODE,
-                mONSProfileActivator.handleSimStateChange());
+                onsProfileActivator.handleCarrierConfigChange());
     }
 
     @Test
     public void testDeviceSwitchToDualSIMModeSuccess() {
-        doReturn(true).when(mMockONSProfileConfigurator).isONSAutoProvisioningEnabled();
-        doReturn(true).when(mMockONSProfileConfigurator).isESIMSupported();
-        doReturn(true).when(mMockONSProfileConfigurator).isMultiSIMPhone();
+        doReturn(TelephonyManager.SIM_STATE_READY).when(mMockTeleManager).getSimState();
+        doReturn(true).when(mMockResources).getBoolean(R.bool.enable_ons_auto_provisioning);
+        doReturn(true).when(mMockEuiccManager).isEnabled();
+        doReturn(2).when(mMockTeleManager).getSupportedModemCount();
+        doReturn(1).when(mMockTeleManager).getActiveModemCount();
         doReturn(mMockactiveSubInfos).when(mMockSubManager).getActiveSubscriptionInfoList();
         doReturn(1).when(mMockactiveSubInfos).size();
         doReturn(mMockSubInfo).when(mMockactiveSubInfos).get(0);
         doReturn(1).when(mMockSubInfo).getSubscriptionId();
         doReturn(false).when(mMockSubInfo).isOpportunistic();
-        doReturn(true).when(mMockONSProfileConfigurator)
-                .isOppDataAutoProvisioningSupported(1);
-        doReturn(true).when(mMockONSProfileConfigurator).isDeviceInSingleSIMMode();
-        doReturn(true).when(mMockONSProfileConfigurator).switchToMultiSIMMode();
 
-        ONSProfileActivator mONSProfileActivator = new ONSProfileActivator(mMockContext,
-                mMockONSProfileConfigurator, mMockONSProfileDownloader);
+        PersistableBundle persistableBundle = new PersistableBundle();
+        persistableBundle.putBoolean(CarrierConfigManager
+                .KEY_CARRIER_SUPPORTS_OPP_DATA_AUTO_PROVISIONING_BOOL, true);
+        doReturn(persistableBundle).when(mMockCarrierConfigManager).getConfigForSubId(1);
+        doReturn(false).when(mMockTeleManager).doesSwitchMultiSimConfigTriggerReboot();
 
-        assertEquals(ONSProfileActivator.Result.ERR_SWITCHED_TO_DUAL_SIM_MODE,
-                mONSProfileActivator.handleSimStateChange());
+        ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
+                mMockSubManager, mMockTeleManager, mMockCarrierConfigManager, mMockEuiccManager,
+                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
+
+        assertEquals(ONSProfileActivator.Result.ERR_SWITCHING_TO_DUAL_SIM_MODE,
+                onsProfileActivator.handleCarrierConfigChange());
     }
 
     //@DisplayName("Dual SIM device with no SIM inserted")
     public void testNoActiveSubscriptions() {
-        doReturn(true).when(mMockONSProfileConfigurator).isONSAutoProvisioningEnabled();
-        doReturn(true).when(mMockONSProfileConfigurator).isESIMSupported();
-        doReturn(true).when(mMockONSProfileConfigurator).isMultiSIMPhone();
+        doReturn(TelephonyManager.SIM_STATE_READY).when(mMockTeleManager).getSimState();
+        doReturn(true).when(mMockResources).getBoolean(R.bool.enable_ons_auto_provisioning);
+        doReturn(true).when(mMockEuiccManager).isEnabled();
+        doReturn(2).when(mMockTeleManager).getSupportedModemCount();
+        doReturn(2).when(mMockTeleManager).getActiveModemCount();
         doReturn(mMockactiveSubInfos).when(mMockSubManager).getActiveSubscriptionInfoList();
         doReturn(0).when(mMockactiveSubInfos).size();
 
-        ONSProfileActivator mONSProfileActivator = new ONSProfileActivator(mMockContext,
-                mMockONSProfileConfigurator, mMockONSProfileDownloader);
+        ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
+                mMockSubManager, mMockTeleManager, mMockCarrierConfigManager, mMockEuiccManager,
+                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
 
         assertEquals(ONSProfileActivator.Result.ERR_NO_SIM_INSERTED,
-                mONSProfileActivator.handleSimStateChange());
+                onsProfileActivator.handleCarrierConfigChange());
     }
 
     @Test
     //@DisplayName("Dual SIM device and non CBRS carrier pSIM inserted")
     public void testNonCBRSCarrierPSIMInserted() {
-        doReturn(true).when(mMockONSProfileConfigurator).isONSAutoProvisioningEnabled();
-        doReturn(true).when(mMockONSProfileConfigurator).isESIMSupported();
-        doReturn(true).when(mMockONSProfileConfigurator).isMultiSIMPhone();
-        doReturn(false).when(mMockONSProfileConfigurator).isOppDataAutoProvisioningSupported(1);
+        doReturn(TelephonyManager.SIM_STATE_READY).when(mMockTeleManager).getSimState();
+        doReturn(true).when(mMockResources).getBoolean(R.bool.enable_ons_auto_provisioning);
+        doReturn(true).when(mMockEuiccManager).isEnabled();
+        doReturn(2).when(mMockTeleManager).getSupportedModemCount();
+        doReturn(2).when(mMockTeleManager).getActiveModemCount();
+
+        PersistableBundle persistableBundle = new PersistableBundle();
+        persistableBundle.putBoolean(CarrierConfigManager
+                .KEY_CARRIER_SUPPORTS_OPP_DATA_AUTO_PROVISIONING_BOOL, false);
+        doReturn(persistableBundle).when(mMockCarrierConfigManager).getConfigForSubId(1);
+
         doReturn(mMockactiveSubInfos).when(mMockSubManager).getActiveSubscriptionInfoList();
         doReturn(1).when(mMockactiveSubInfos).size();
         doReturn(mMockSubInfo).when(mMockactiveSubInfos).get(0);
         doReturn(1).when(mMockSubInfo).getSubscriptionId();
         doReturn(false).when(mMockSubInfo).isOpportunistic();
-        doReturn(false).when(mMockONSProfileConfigurator).isOppDataAutoProvisioningSupported(1);
 
-        ONSProfileActivator mONSProfileActivator = new ONSProfileActivator(mMockContext,
-                mMockONSProfileConfigurator, mMockONSProfileDownloader);
+        ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
+                mMockSubManager, mMockTeleManager, mMockCarrierConfigManager, mMockEuiccManager,
+                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
 
         assertEquals(ONSProfileActivator.Result.ERR_CARRIER_DOESNT_SUPPORT_CBRS,
-                mONSProfileActivator.handleSimStateChange());
+                onsProfileActivator.handleCarrierConfigChange());
     }
 
     @Test
     //@DisplayName("Dual SIM device with Two PSIM active subscriptions")
     public void testTwoActivePSIMSubscriptions() {
-        doReturn(true).when(mMockONSProfileConfigurator).isONSAutoProvisioningEnabled();
-        doReturn(true).when(mMockONSProfileConfigurator).isESIMSupported();
-        doReturn(true).when(mMockONSProfileConfigurator).isMultiSIMPhone();
+        doReturn(TelephonyManager.SIM_STATE_READY).when(mMockTeleManager).getSimState();
+        doReturn(true).when(mMockResources).getBoolean(R.bool.enable_ons_auto_provisioning);
+        doReturn(true).when(mMockEuiccManager).isEnabled();
+        doReturn(2).when(mMockTeleManager).getSupportedModemCount();
+        doReturn(2).when(mMockTeleManager).getActiveModemCount();
+
         ArrayList<SubscriptionInfo> mActiveSubInfos = new ArrayList<>();
         mActiveSubInfos.add(mMockSubInfo);
         mActiveSubInfos.add(mMockSubInfo2);
@@ -216,18 +260,19 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
         doReturn(false).when(mMockSubInfo).isEmbedded();
         doReturn(false).when(mMockSubInfo2).isEmbedded();
 
-        ONSProfileActivator mONSProfileActivator = new ONSProfileActivator(mMockContext,
-                mMockONSProfileConfigurator, mMockONSProfileDownloader);
+        ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
+                mMockSubManager, mMockTeleManager, mMockCarrierConfigManager, mMockEuiccManager,
+                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
 
         assertEquals(ONSProfileActivator.Result.ERR_DUAL_ACTIVE_SUBSCRIPTIONS,
-                mONSProfileActivator.handleSimStateChange());
+                onsProfileActivator.handleCarrierConfigChange());
     }
 
     /*@Test
     //Cannot mock/spy class android.os.PersistableBundle
     public void testOneActivePSIMAndOneNonOpportunisticESIM() {
-        doReturn(true).when(mMockONSProfileConfigurator).isESIMSupported();
-        doReturn(true).when(mMockONSProfileConfigurator).isMultiSIMPhone();
+        doReturn(true).when(mMockONSUtil).isESIMSupported();
+        doReturn(true).when(mMockONSUtil).isMultiSIMPhone();
         ArrayList<SubscriptionInfo> mActiveSubInfos = new ArrayList<>();
         mActiveSubInfos.add(mMockSubInfo1);
         mActiveSubInfos.add(mMockSubInfo2);
@@ -237,18 +282,18 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
         //0 - using carrier-id=0 to make sure it doesn't map to any opportunistic carrier-id
         doReturn(0).when(mMockSubInfo2).getCarrierId();
 
-        ONSProfileActivator mONSProfileActivator = new ONSProfileActivator(mMockContext,
+        ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
                 mMockONSProfileConfigurator, mMockONSProfileDownloader);
 
         assertEquals(ONSProfileActivator.Result.ERR_DUAL_ACTIVE_SUBSCRIPTIONS,
-                mONSProfileActivator.handleSimStateChange());
+                onsProfileActivator.handleSimStateChange());
     }*/
 
     /*@Test
     //Cannot mock/spy class android.os.PersistableBundle
     public void testOneActivePSIMAndOneOpportunisticESIM() {
-        doReturn(true).when(mMockONSProfileConfigurator).isESIMSupported();
-        doReturn(true).when(mMockONSProfileConfigurator).isMultiSIMPhone();
+        doReturn(true).when(mMockONSUtil).isESIMSupported();
+        doReturn(true).when(mMockONSUtil).isMultiSIMPhone();
         ArrayList<SubscriptionInfo> mActiveSubInfos = new ArrayList<>();
         mActiveSubInfos.add(mMockSubInfo1);
         mActiveSubInfos.add(mMockSubInfo2);
@@ -262,51 +307,112 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
         //1 - using carrier-id=1 to match with opportunistic carrier-id
         doReturn(1).when(mMockSubInfo2).getCarrierId();
 
-        ONSProfileActivator mONSProfileActivator = new ONSProfileActivator(mMockContext,
+        ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
                 mMockONSProfileConfigurator, mMockONSProfileDownloader);
 
         assertEquals(ONSProfileActivator.Result.SUCCESS,
-                mONSProfileActivator.handleSimStateChange());
+                onsProfileActivator.handleSimStateChange());
     }*/
 
     @Test
     //@DisplayName("Dual SIM device with only opportunistic eSIM active")
     public void testOnlyOpportunisticESIMActive() {
-        doReturn(true).when(mMockONSProfileConfigurator).isONSAutoProvisioningEnabled();
-        doReturn(true).when(mMockONSProfileConfigurator).isESIMSupported();
-        doReturn(true).when(mMockONSProfileConfigurator).isMultiSIMPhone();
+        doReturn(TelephonyManager.SIM_STATE_READY).when(mMockTeleManager).getSimState();
+        doReturn(true).when(mMockResources).getBoolean(R.bool.enable_ons_auto_provisioning);
+        doReturn(true).when(mMockEuiccManager).isEnabled();
+        doReturn(2).when(mMockTeleManager).getSupportedModemCount();
+        doReturn(2).when(mMockTeleManager).getActiveModemCount();
         doReturn(mMockactiveSubInfos).when(mMockSubManager).getActiveSubscriptionInfoList();
         doReturn(1).when(mMockactiveSubInfos).size();
         doReturn(mMockSubInfo).when(mMockactiveSubInfos).get(0);
         doReturn(true).when(mMockSubInfo).isOpportunistic();
 
-        ONSProfileActivator mONSProfileActivator = new ONSProfileActivator(mMockContext,
-                mMockONSProfileConfigurator, mMockONSProfileDownloader);
+        ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
+                mMockSubManager, mMockTeleManager, mMockCarrierConfigManager, mMockEuiccManager,
+                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
 
         assertEquals(ONSProfileActivator.Result.ERR_SINGLE_ACTIVE_OPPORTUNISTIC_SIM,
-                mONSProfileActivator.handleSimStateChange());
+                onsProfileActivator.handleCarrierConfigChange());
     }
 
     @Test
     //@DisplayName("Dual SIM device, only CBRS carrier pSIM inserted and pSIM not Grouped")
     public void testCBRSpSIMAndNotGrouped() {
-        doReturn(true).when(mMockONSProfileConfigurator).isONSAutoProvisioningEnabled();
-        doReturn(true).when(mMockONSProfileConfigurator).isESIMSupported();
-        doReturn(true).when(mMockONSProfileConfigurator).isMultiSIMPhone();
-        doReturn(true).when(mMockONSProfileConfigurator).isOppDataAutoProvisioningSupported(1);
+        doReturn(TelephonyManager.SIM_STATE_READY).when(mMockTeleManager).getSimState();
+        doReturn(true).when(mMockResources).getBoolean(R.bool.enable_ons_auto_provisioning);
+        doReturn(true).when(mMockEuiccManager).isEnabled();
+        doReturn(2).when(mMockTeleManager).getSupportedModemCount();
+        doReturn(2).when(mMockTeleManager).getActiveModemCount();
+
+        PersistableBundle persistableBundle = new PersistableBundle();
+        persistableBundle.putBoolean(CarrierConfigManager
+                .KEY_CARRIER_SUPPORTS_OPP_DATA_AUTO_PROVISIONING_BOOL, true);
+        doReturn(persistableBundle).when(mMockCarrierConfigManager).getConfigForSubId(1);
+
         doReturn(mMockactiveSubInfos).when(mMockSubManager).getActiveSubscriptionInfoList();
         doReturn(1).when(mMockactiveSubInfos).size();
         doReturn(mMockSubInfo).when(mMockactiveSubInfos).get(0);
         doReturn(false).when(mMockSubInfo).isOpportunistic();
         doReturn(1).when(mMockSubInfo).getSubscriptionId();
-        doReturn(true).when(mMockONSProfileConfigurator).isOppDataAutoProvisioningSupported(1);
         doReturn(null).when(mMockSubInfo).getGroupUuid();
 
-        ONSProfileActivator mONSProfileActivator = new ONSProfileActivator(mMockContext,
-                mMockONSProfileConfigurator, mMockONSProfileDownloader);
+        ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
+                mMockSubManager, mMockTeleManager, mMockCarrierConfigManager, mMockEuiccManager,
+                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
 
+        onsProfileActivator.mIsInternetConnAvailable = true;
         assertEquals(ONSProfileActivator.Result.SUCCESS,
-                mONSProfileActivator.handleSimStateChange());
+                onsProfileActivator.handleCarrierConfigChange());
+    }
+
+    @Test
+    public void testCalculateBackoffDelay() {
+        final Object lock = new Object();
+
+        Runnable runnable = new Runnable() {
+            @Override
+            public void run() {
+                int delay = ONSProfileActivator.calculateBackoffDelay(1, 1) / 1000;
+                assertEquals(true, (delay >= 1 && delay <= 2));
+
+                Log.i(TAG, "calculateBackoffDelay(2, 1)");
+                delay = ONSProfileActivator.calculateBackoffDelay(2, 1) / 1000;
+                assertEquals(true, (delay >= 1 && delay < 4));
+
+                delay = ONSProfileActivator.calculateBackoffDelay(3, 1) / 1000;
+                assertEquals(true, (delay >= 1 && delay < 8));
+
+                delay = ONSProfileActivator.calculateBackoffDelay(4, 1) / 1000;
+                assertEquals(true, (delay >= 1 && delay < 16));
+
+                delay = ONSProfileActivator.calculateBackoffDelay(1, 2) / 1000;
+                assertEquals(true, (delay >= 1 && delay <= 4));
+
+                delay = ONSProfileActivator.calculateBackoffDelay(1, 3) / 1000;
+                assertEquals(true, (delay >= 1 && delay <= 6));
+
+                delay = ONSProfileActivator.calculateBackoffDelay(2, 2) / 1000;
+                assertEquals(true, (delay >= 2 && delay < 8));
+
+                synchronized (lock) {
+                    lock.notifyAll();
+                }
+            }
+        };
+
+        ONSProfileDownloaderTest.WorkerThread workerThread = new ONSProfileDownloaderTest
+                .WorkerThread(runnable);
+        workerThread.start();
+
+        synchronized (lock) {
+            try {
+                lock.wait();
+            } catch (Exception e) {
+                Log.e(TAG, e.getLocalizedMessage());
+            }
+        }
+
+        workerThread.exit();
     }
 
     /* Unable to mock final class ParcelUuid. These testcases should be enabled once the solution
@@ -318,7 +424,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
 
         doReturn(true).when(mMockONSProfileConfigurator)
                 .isESIMSupported();
-        doReturn(true).when(mMockONSProfileConfigurator).isMultiSIMPhone();
+        doReturn(true).when(mMockONSUtil).isMultiSIMPhone();
         doReturn(true).when(mMockONSProfileConfigurator).isOppDataAutoProvisioningSupported(
                 mMockPrimaryCBRSSubInfo);
         doReturn(mMockactiveSubInfos).when(mMockSubManager).getActiveSubscriptionInfoList();
@@ -332,13 +438,13 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
         mMockParcelUuid);
         doReturn(1).when(mMocksubsInPSIMGroup).size();
 
-        ONSProfileActivator mONSProfileActivator =
+        ONSProfileActivator onsProfileActivator =
                 new ONSProfileActivator(mMockContext, mMockSubManager, mMockEuiCCManager,
                 mMockTeleManager,
                         mMockONSProfileConfigurator, mMockONSProfileDownloader);
 
         assertEquals(ONSProfileActivator.Result.SUCCESS,
-                mONSProfileActivator.handleSimStateChange());
+                onsProfileActivator.handleSimStateChange());
     }
 
     @Test
@@ -349,7 +455,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
 
         doReturn(true).when(mMockONSProfileConfigurator)
                 .isESIMSupported();
-        doReturn(true).when(mMockONSProfileConfigurator).isMultiSIMPhone();
+        doReturn(true).when(mMockONSUtil).isMultiSIMPhone();
         doReturn(true).when(mMockONSProfileConfigurator).isOppDataAutoProvisioningSupported(
                 mMockPrimaryCBRSSubInfo);
         doReturn(mMockactiveSubInfos).when(mMockSubManager).getActiveSubscriptionInfoList();
@@ -363,12 +469,12 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
         mMockParcelUuid);
         doReturn(2).when(mMocksubsInPSIMGroup).size();
 
-        ONSProfileActivator mONSProfileActivator =
+        ONSProfileActivator onsProfileActivator =
                 new ONSProfileActivator(mMockContext, mMockSubManager, mMockEuiCCManager,
                 mMockTeleManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
 
         assertEquals(ONSProfileActivator.Result.SUCCESS,
-                mONSProfileActivator.handleSimStateChange());
+                onsProfileActivator.handleSimStateChange());
     }
 
     @Test
@@ -379,7 +485,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
 
         doReturn(true).when(mMockONSProfileConfigurator)
                 .isESIMSupported();
-        doReturn(true).when(mMockONSProfileConfigurator).isMultiSIMPhone();
+        doReturn(true).when(mMockONSUtil).isMultiSIMPhone();
         doReturn(true).when(mMockONSProfileConfigurator).isOppDataAutoProvisioningSupported(
                 mMockPrimaryCBRSSubInfo);
         doReturn(mMockactiveSubInfos).when(mMockSubManager).getActiveSubscriptionInfoList();
@@ -393,29 +499,43 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
         mMockParcelUuid);
         doReturn(3).when(mMocksubsInPSIMGroup).size();
 
-        ONSProfileActivator mONSProfileActivator =
+        ONSProfileActivator onsProfileActivator =
                 new ONSProfileActivator(mMockContext, mMockSubManager, mMockEuiCCManager,
                 mMockTeleManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
 
         assertEquals(ONSProfileActivator.Result.SUCCESS,
-                mONSProfileActivator.handleSimStateChange());
+                onsProfileActivator.handleSimStateChange());
     }
 
     @Test
     public void testRetryDownloadAfterRebootWithOppESIMAlreadyDownloaded() {
         doReturn(true).when(mMockONSProfileConfigurator).getRetryDownloadAfterReboot();
         doReturn(1).when(mMockONSProfileConfigurator).getRetryDownloadPSIMSubId();
-        doReturn(mMockSubManager).when(mMockONSProfileConfigurator).getSubscriptionManager();
+        doReturn(mMockSubManager).when(mMockONSUtil).getSubscriptionManager();
         doReturn(mMocksubsInPSIMGroup).when(mMockSubManager).getActiveSubscriptionInfo();
         //TODO: mock ParcelUuid - pSIM group
 
-        ONSProfileActivator mONSProfileActivator = new ONSProfileActivator(mMockContext,
+        ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
                 mMockONSProfileConfigurator, mMockONSProfileDownloader);
 
         assertEquals(ONSProfileActivator.Result.ERR_INVALID_PSIM_SUBID,
-                mONSProfileActivator.retryDownloadAfterReboot());
+                onsProfileActivator.retryDownloadAfterReboot());
     }
     */
+
+    /*@Test
+    public void testNoInternetDownloadRequest() {
+        doReturn(TEST_SUB_ID).when(mMockSubInfo).getSubscriptionId();
+
+        ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mMockContext,
+                mMockCarrierConfigManager, mMockEUICCManager, mMockONSProfileConfig, null);
+
+        onsProfileDownloader.mIsInternetConnAvailable = false;
+        onsProfileDownloader.downloadOpportunisticESIM(mMockSubInfo);
+
+        assertEquals(onsProfileDownloader.mRetryDownloadWhenNWConnected, true);
+        verify(mMockEUICCManager, never()).downloadSubscription(null, true, null);
+    }*/
 
     @After
     public void tearDown() throws Exception {
