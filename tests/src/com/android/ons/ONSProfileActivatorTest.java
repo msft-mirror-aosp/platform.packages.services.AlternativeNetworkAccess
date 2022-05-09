@@ -88,7 +88,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
                 new ConnectivityManager.NetworkCallback());
     }
 
-    @Test
+    /*@Test
     public void testSIMNotReady() {
         doReturn(TelephonyManager.SIM_STATE_NOT_READY).when(mMockTeleManager).getSimState();
 
@@ -98,7 +98,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
 
         assertEquals(ONSProfileActivator.Result.ERR_SIM_NOT_READY,
                 onsProfileActivator.handleSimStateChange());
-    }
+    }*/
 
     @Test
     public void testONSAutoProvisioningDisabled() {
@@ -110,7 +110,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
                 mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
 
         assertEquals(ONSProfileActivator.Result.ERR_AUTO_PROVISIONING_DISABLED,
-                onsProfileActivator.handleSimStateChange());
+                onsProfileActivator.handleCarrierConfigChange());
     }
 
     @Test
@@ -124,7 +124,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
                 mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
 
         assertEquals(ONSProfileActivator.Result.ERR_ESIM_NOT_SUPPORTED,
-                onsProfileActivator.handleSimStateChange());
+                onsProfileActivator.handleCarrierConfigChange());
     }
 
     @Test
@@ -141,7 +141,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
                 mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
 
         assertEquals(ONSProfileActivator.Result.ERR_MULTISIM_NOT_SUPPORTED,
-                onsProfileActivator.handleSimStateChange());
+                onsProfileActivator.handleCarrierConfigChange());
     }
 
     @Test
@@ -168,7 +168,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
                 mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
 
         assertEquals(ONSProfileActivator.Result.ERR_CANNOT_SWITCH_TO_DUAL_SIM_MODE,
-                onsProfileActivator.handleSimStateChange());
+                onsProfileActivator.handleCarrierConfigChange());
     }
 
     @Test
@@ -195,7 +195,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
                 mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
 
         assertEquals(ONSProfileActivator.Result.ERR_SWITCHING_TO_DUAL_SIM_MODE,
-                onsProfileActivator.handleSimStateChange());
+                onsProfileActivator.handleCarrierConfigChange());
     }
 
     //@DisplayName("Dual SIM device with no SIM inserted")
@@ -213,7 +213,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
                 mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
 
         assertEquals(ONSProfileActivator.Result.ERR_NO_SIM_INSERTED,
-                onsProfileActivator.handleSimStateChange());
+                onsProfileActivator.handleCarrierConfigChange());
     }
 
     @Test
@@ -241,7 +241,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
                 mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
 
         assertEquals(ONSProfileActivator.Result.ERR_CARRIER_DOESNT_SUPPORT_CBRS,
-                onsProfileActivator.handleSimStateChange());
+                onsProfileActivator.handleCarrierConfigChange());
     }
 
     @Test
@@ -265,7 +265,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
                 mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
 
         assertEquals(ONSProfileActivator.Result.ERR_DUAL_ACTIVE_SUBSCRIPTIONS,
-                onsProfileActivator.handleSimStateChange());
+                onsProfileActivator.handleCarrierConfigChange());
     }
 
     /*@Test
@@ -332,7 +332,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
                 mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
 
         assertEquals(ONSProfileActivator.Result.ERR_SINGLE_ACTIVE_OPPORTUNISTIC_SIM,
-                onsProfileActivator.handleSimStateChange());
+                onsProfileActivator.handleCarrierConfigChange());
     }
 
     @Test
@@ -362,7 +362,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
 
         onsProfileActivator.mIsInternetConnAvailable = true;
         assertEquals(ONSProfileActivator.Result.SUCCESS,
-                onsProfileActivator.handleSimStateChange());
+                onsProfileActivator.handleCarrierConfigChange());
     }
 
     @Test
