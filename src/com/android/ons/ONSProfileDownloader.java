@@ -20,8 +20,10 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Handler;
+import android.os.Looper;
 import android.os.Message;
-import android.telephony.SubscriptionInfo;
+import android.os.PersistableBundle;
+import android.telephony.CarrierConfigManager;
 import android.telephony.euicc.DownloadableSubscription;
 import android.telephony.euicc.EuiccManager;
 import android.util.Log;
@@ -29,50 +31,55 @@ import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
 
-import java.util.Random;
 import java.util.Stack;
 
 public class ONSProfileDownloader {
 
     interface IONSProfileDownloaderListener {
         void onDownloadComplete(int primarySubId);
+        void onDownloadError(DownloadRetryOperationCode operationCode, int pSIMSubId);
     }
 
     private static final String TAG = ONSProfileDownloader.class.getName();
+    public static final String ACTION_ONS_ESIM_DOWNLOAD = "com.android.ons.action.ESIM_DOWNLOAD";
 
     @VisibleForTesting protected static final String PARAM_PRIMARY_SUBID = "PrimarySubscriptionID";
     @VisibleForTesting protected static final String PARAM_REQUEST_TYPE = "REQUEST";
     @VisibleForTesting protected static final int REQUEST_CODE_DOWNLOAD_SUB = 1;
-    @VisibleForTesting protected static final int REQUEST_CODE_DOWNLOAD_RETRY = 2;
-    private static IONSProfileDownloaderListener sListener;
-    private static Handler sHandler;
 
+    private final Handler mHandler;
     private final Context mContext;
+    private final CarrierConfigManager mCarrierConfigManager;
+    private final EuiccManager mEuiccManager;
     private final ONSProfileConfigurator mONSProfileConfig;
+    private IONSProfileDownloaderListener mListener;
 
     @VisibleForTesting
     protected enum DownloadRetryOperationCode{
         DOWNLOAD_SUCCESSFUL,
-        STOP_RETRY_UNTIL_SIM_STATE_CHANGE,
-        DELETE_INACTIVE_OPP_ESIM_IF_EXISTS,
-        DELETE_EXISTING_PROFILE_AND_RETRY,
-        RETRY_AFTER_BACKOFF_TIME,
+        ERR_UNRESOLVABLE,
+        ERR_MEMORY_FULL,
+        ERR_INSTALL_ESIM_PROFILE_FAILED,
+        ERR_RETRY_DOWNLOAD,
+        BACKOFF_TIMER_EXPIRED
     };
 
-    public ONSProfileDownloader(Context context, ONSProfileConfigurator onsProfileConfigurator,
+    public ONSProfileDownloader(Context context, CarrierConfigManager carrierConfigManager,
+                                EuiccManager euiccManager,
+                                ONSProfileConfigurator onsProfileConfigurator,
                                 IONSProfileDownloaderListener listener) {
         mContext = context;
-        sListener = listener;
+        mListener = listener;
+        mEuiccManager = euiccManager;
         mONSProfileConfig = onsProfileConfigurator;
-        sHandler = new DownloadHandler();
+        mCarrierConfigManager = carrierConfigManager;
+
+        mHandler = new DownloadHandler();
     }
 
     class DownloadHandler extends Handler {
-        private int mDownloadRetryCount = 0;
-        private final Random mRandom;
-
         DownloadHandler() {
-            mRandom = new Random();
+            super(Looper.myLooper());
         }
 
         @Override
@@ -92,56 +99,35 @@ public class ONSProfileDownloader {
                     Log.d(TAG, "Operation Code : " + operationCode);
                     Log.d(TAG, "Error Code : " + errorCode);
 
-                    DownloadRetryOperationCode opCode = getOperationCode(msg.arg1, detailedErrCode,
-                            operationCode, errorCode);
+                    DownloadRetryOperationCode opCode = mapDownloaderErrorCode(msg.arg1,
+                            detailedErrCode, operationCode, errorCode);
                     Log.d(TAG, "DownloadRetryOperationCode: " + opCode);
 
                     switch (opCode) {
                         case DOWNLOAD_SUCCESSFUL:
-                            ONSProfileDownloader.sListener.onDownloadComplete(pSIMSubId);
+                            mListener.onDownloadComplete(pSIMSubId);
                             break;
 
-                        case STOP_RETRY_UNTIL_SIM_STATE_CHANGE:
-                            mONSProfileConfig.setRetryDownloadWhenConnectedFlag(false);
-                            Log.e(TAG, "Download ERR: unresolvable error occurred. Detailed"
-                                    + "Error Code:" + detailedErrCode);
+                        case ERR_UNRESOLVABLE:
+                            mListener.onDownloadError(opCode, pSIMSubId);
+                            Log.e(TAG, "Unresolvable download error: "
+                                    + getUnresolvableErrorDescription(errorCode));
                             break;
 
-                        case DELETE_INACTIVE_OPP_ESIM_IF_EXISTS:
-                            if (!mONSProfileConfig.deleteOpportunisticSubscriptions(pSIMSubId)) {
-                                Log.e(TAG, "Unable to free eUICC memory. Stop retry.");
-                            } else {
-                                retryDownloadAfterBackoffTime(pSIMSubId);
-                            }
-                            break;
-
-                        case DELETE_EXISTING_PROFILE_AND_RETRY:
-                            if (!mONSProfileConfig
-                                    .deleteOldOpportunisticESimsOfPSIMOperator(pSIMSubId)) {
-                                Log.e(TAG, "Unable to delete existing profile. Stop retry.");
-                            } else {
-                                retryDownloadAfterBackoffTime(pSIMSubId);
-                            }
-                            break;
-
-                        case RETRY_AFTER_BACKOFF_TIME:
-                            retryDownloadAfterBackoffTime(pSIMSubId);
+                        default:
+                            mListener.onDownloadError(opCode, pSIMSubId);
                             break;
                     }
-                }
-                break;
-
-                case REQUEST_CODE_DOWNLOAD_RETRY: {
-                    Log.d(TAG, "Retrying download");
-                    downloadProfile(msg.arg2); //arg1 -> primary SubId
                 }
                 break;
             }
         }
 
         @VisibleForTesting
-        protected DownloadRetryOperationCode getOperationCode(int resultCode, int detailedErrCode,
-                                                            int operationCode, int errorCode) {
+        protected DownloadRetryOperationCode mapDownloaderErrorCode(int resultCode,
+                                                                    int detailedErrCode,
+                                                                    int operationCode,
+                                                                    int errorCode) {
 
             if (operationCode == EuiccManager.OPERATION_DOWNLOAD) {
 
@@ -153,23 +139,23 @@ public class ONSProfileDownloader {
                 //Low eUICC memory cases
                 if (errorCode == EuiccManager.ERROR_EUICC_INSUFFICIENT_MEMORY) {
                     Log.d(TAG, "Download ERR: EUICC_INSUFFICIENT_MEMORY");
-                    return DownloadRetryOperationCode.DELETE_INACTIVE_OPP_ESIM_IF_EXISTS;
+                    return DownloadRetryOperationCode.ERR_MEMORY_FULL;
                 }
 
                 //Temporary download error cases
                 if (errorCode == EuiccManager.ERROR_TIME_OUT
                         || errorCode == EuiccManager.ERROR_CONNECTION_ERROR
                         || errorCode == EuiccManager.ERROR_OPERATION_BUSY) {
-                    return DownloadRetryOperationCode.RETRY_AFTER_BACKOFF_TIME;
+                    return DownloadRetryOperationCode.ERR_RETRY_DOWNLOAD;
                 }
 
                 //Profile installation failure cases
                 if (errorCode == EuiccManager.ERROR_INSTALL_PROFILE) {
-                    return DownloadRetryOperationCode.DELETE_EXISTING_PROFILE_AND_RETRY;
+                    return DownloadRetryOperationCode.ERR_INSTALL_ESIM_PROFILE_FAILED;
                 }
 
                 //UnResolvable error cases
-                return DownloadRetryOperationCode.STOP_RETRY_UNTIL_SIM_STATE_CHANGE;
+                return DownloadRetryOperationCode.ERR_UNRESOLVABLE;
 
             } else if (operationCode == EuiccManager.OPERATION_SMDX_SUBJECT_REASON_CODE) {
                 //SMDP Error codes handling
@@ -178,112 +164,89 @@ public class ONSProfileDownloader {
                 //8.1 - eUICC, 4.8 - Insufficient Memory
                 // eUICC does not have sufficient space for this Profile.
                 if (errCode.equals(Pair.create("8.1.0", "4.8"))) {
-                    return DownloadRetryOperationCode.DELETE_INACTIVE_OPP_ESIM_IF_EXISTS;
+                    return DownloadRetryOperationCode.ERR_MEMORY_FULL;
                 }
 
                 //8.8.5 - Download order, 4.10 - Time to Live Expired
                 //The Download order has expired
                 if (errCode.equals(Pair.create("8.8.5", "4.10"))) {
-                    return DownloadRetryOperationCode.RETRY_AFTER_BACKOFF_TIME;
+                    return DownloadRetryOperationCode.ERR_RETRY_DOWNLOAD;
                 }
 
                 //All other errors are unresolvable or retry after SIM State Change
-                return DownloadRetryOperationCode.STOP_RETRY_UNTIL_SIM_STATE_CHANGE;
+                return DownloadRetryOperationCode.ERR_UNRESOLVABLE;
 
             } else {
                 //Ignore if Operation code is not DOWNLOAD or SMDX_SUBJECT_REASON_CODE.
                 //Callback is registered only for download requests.
-                return DownloadRetryOperationCode.STOP_RETRY_UNTIL_SIM_STATE_CHANGE;
+                return DownloadRetryOperationCode.ERR_UNRESOLVABLE;
             }
-        }
-
-        private void retryDownloadAfterBackoffTime(int pSIMSubId) {
-            //retry logic
-            mDownloadRetryCount++;
-            Log.e(TAG, "Download retry count :" + mDownloadRetryCount);
-            if (mDownloadRetryCount >= mONSProfileConfig
-                    .getDownloadRetryMaxAttemptsVal(pSIMSubId)) {
-                Log.e(TAG, "Max download retry attempted. Stopping retry");
-                return;
-            }
-
-            int backoffTimerVal = mONSProfileConfig.getDownloadRetryBackOffTimerVal(pSIMSubId);
-            int delay = calculateBackoffDelay(mDownloadRetryCount, backoffTimerVal);
-
-            Message retryMsg = new Message();
-            retryMsg.what = REQUEST_CODE_DOWNLOAD_RETRY;
-            retryMsg.arg2 = pSIMSubId;
-            sendMessageDelayed(retryMsg, delay);
-
-            Log.d(TAG, "Download failed. Retry after :" + delay + "MilliSecs");
-        }
-
-        @VisibleForTesting
-        protected int calculateBackoffDelay(int retryCount, int backoffTimerVal) {
-            /**
-             * Timer value is calculated using "Exponential Backoff retry" algorithm.
-             * When the first download failure occurs, retry download after
-             * BACKOFF_TIMER_VALUE [Carrier Configurable] seconds.
-             *
-             * If download fails again then, retry after either BACKOFF_TIMER_VALUE,
-             * 2xBACKOFF_TIMER_VALUE, or 3xBACKOFF_TIMER_VALUE seconds.
-             *
-             * In general after the cth failed attempt, retry after k *
-             * BACKOFF_TIMER_VALUE seconds, where k is a random integer between 1 and
-             * 2^c − 1. Max c value is KEY_ESIM_MAX_DOWNLOAD_RETRY_ATTEMPTS_INT
-             * [Carrier configurable]
-             */
-            //Calculate 2^c − 1
-            int maxTime = (int) Math.pow(2, retryCount) - 1;
-
-            //Random value between (1 & 2^c − 1) and convert to millisecond
-            return ((mRandom.nextInt(maxTime) + 1)) * backoffTimerVal * 1000;
         }
     }
 
-    /**
-     * Finds the eSIM profile of the given CBRS carrier. Returns null if eSIM profile is not found.
-     *
-     * @param primaryCBRSSubInfo SubscriptionInfo of a CBRS Carrier of which corresponding eSIM info
-     *                           is required.
-     * @return
-     */
-    public void downloadOpportunisticESIM(SubscriptionInfo primaryCBRSSubInfo) {
-        //Delete old eSIM (if exists) from the same operator as current pSIM.
-        /*mONSProfileConfig.deleteOldOpportunisticESimsOfPSIMOperator(
-                primaryCBRSSubInfo.getSubscriptionId());*/
-        downloadProfile(primaryCBRSSubInfo.getSubscriptionId());
-        return;
+    private String getUnresolvableErrorDescription(int errorCode) {
+        switch (errorCode) {
+            case EuiccManager.ERROR_INVALID_ACTIVATION_CODE:
+                return "ERROR_INVALID_ACTIVATION_CODE";
+
+            case EuiccManager.ERROR_UNSUPPORTED_VERSION:
+                return "ERROR_UNSUPPORTED_VERSION";
+
+            case EuiccManager.ERROR_INSTALL_PROFILE:
+                return "ERROR_INSTALL_PROFILE";
+
+            case EuiccManager.ERROR_SIM_MISSING:
+                return "ERROR_SIM_MISSING";
+
+            case EuiccManager.ERROR_ADDRESS_MISSING:
+                return "ERROR_ADDRESS_MISSING";
+
+            case EuiccManager.ERROR_CERTIFICATE_ERROR:
+                return "ERROR_CERTIFICATE_ERROR";
+
+            case EuiccManager.ERROR_NO_PROFILES_AVAILABLE:
+                return "ERROR_NO_PROFILES_AVAILABLE";
+
+            case EuiccManager.ERROR_CARRIER_LOCKED:
+                return "ERROR_CARRIER_LOCKED";
+        }
+
+        return "Unknown";
     }
 
     @VisibleForTesting
     protected void downloadProfile(int primarySubId) {
         Log.d(TAG, "downloadProfile");
-        if (!mONSProfileConfig.isInternetConnectionAvailable()) {
-            Log.d(TAG, "No internet connection. Download will be attempted when "
-                    + "connection is restored");
-            mONSProfileConfig.setRetryDownloadWhenConnectedFlag(true);
+
+        //Get SMDP address from carrier configuration.
+        String smdpAddress = getSMDPServerAddress(primarySubId);
+        if (smdpAddress == null || smdpAddress.length() <= 0) {
             return;
         }
 
-        //Get SMDP address from carrier configuration
-        String smdpAddr = mONSProfileConfig.getSMDPServerAddress(primarySubId);
-        if (smdpAddr == null || smdpAddr.length() <= 0) {
-            return;
-        }
-
+        //Generate Activation code 1${SM-DP+ FQDN}$
+        String activationCode = "1$" + smdpAddress + "$";
         Intent intent = new Intent(mContext, ONSProfileResultReceiver.class);
-        intent.setAction(ONSProfileResultReceiver.ACTION_ONS_RESULT_CALLBACK);
-        intent.putExtra(Intent.EXTRA_COMPONENT_NAME, ONSProfileDownloader.class.getName());
+        intent.setAction(ACTION_ONS_ESIM_DOWNLOAD);
         intent.putExtra(PARAM_REQUEST_TYPE, REQUEST_CODE_DOWNLOAD_SUB);
         intent.putExtra(PARAM_PRIMARY_SUBID, primarySubId);
         PendingIntent callbackIntent = PendingIntent.getBroadcast(mContext,
                 REQUEST_CODE_DOWNLOAD_SUB, intent, PendingIntent.FLAG_MUTABLE);
 
         Log.d(TAG, "Download Request sent to EUICC Manager");
-        mONSProfileConfig.getEuiccManager().downloadSubscription(
-                DownloadableSubscription.forActivationCode(smdpAddr),
-                true, callbackIntent);
+        mEuiccManager.downloadSubscription(DownloadableSubscription.forActivationCode(
+                activationCode), true, callbackIntent);
+    }
+
+    /**
+     * Retrieves SMDP+ server address of the given subscription from carrier configuration.
+     *
+     * @param subscriptionId subscription Id of the primary SIM.
+     * @return FQDN of SMDP+ server.
+     */
+    private String getSMDPServerAddress(int subscriptionId) {
+        PersistableBundle config = mCarrierConfigManager.getConfigForSubId(subscriptionId);
+        return config.getString(CarrierConfigManager.KEY_SMDP_SERVER_ADDRESS_STRING);
     }
 
     /**
@@ -327,11 +290,11 @@ public class ONSProfileDownloader {
      * @param intent
      * @param resultCode
      */
-    public static void onCallbackIntentReceived(Intent intent, int resultCode) {
+    public void onCallbackIntentReceived(Intent intent, int resultCode) {
         Message msg = new Message();
         msg.what = REQUEST_CODE_DOWNLOAD_SUB;
         msg.arg1 = resultCode;
         msg.obj = intent;
-        sHandler.sendMessage(msg);
+        mHandler.sendMessage(msg);
     }
 }
