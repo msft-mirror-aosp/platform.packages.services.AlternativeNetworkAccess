@@ -136,8 +136,7 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
                 intent.putExtra(ONSProfileDownloader.PARAM_PRIMARY_SUBID, TEST_SUB_ID);
                 intent.putExtra(ONSProfileDownloader.PARAM_REQUEST_TYPE,
                         ONSProfileDownloader.REQUEST_CODE_DOWNLOAD_SUB);
-                intent.putExtra(EuiccManager.EXTRA_EMBEDDED_SUBSCRIPTION_OPERATION_CODE,
-                        EuiccManager.OPERATION_DOWNLOAD);
+                intent.putExtra(EuiccManager.EXTRA_EMBEDDED_SUBSCRIPTION_OPERATION_CODE, 0);
 
                 onsProfileDownloader.onCallbackIntentReceived(intent,
                         EuiccManager.EMBEDDED_SUBSCRIPTION_RESULT_OK);
@@ -215,7 +214,7 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
                 intent.putExtra(ONSProfileDownloader.PARAM_REQUEST_TYPE,
                         ONSProfileDownloader.REQUEST_CODE_DOWNLOAD_SUB);
                 intent.putExtra(EuiccManager.EXTRA_EMBEDDED_SUBSCRIPTION_OPERATION_CODE,
-                        EuiccManager.OPERATION_DOWNLOAD);
+                        EuiccManager.OPERATION_EUICC_GSMA);
                 intent.putExtra(EuiccManager.EXTRA_EMBEDDED_SUBSCRIPTION_ERROR_CODE,
                         EuiccManager.ERROR_EUICC_INSUFFICIENT_MEMORY);
 
@@ -266,7 +265,7 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
                 intent.putExtra(EuiccManager.EXTRA_EMBEDDED_SUBSCRIPTION_ERROR_CODE,
                         EuiccManager.ERROR_CONNECTION_ERROR);
                 intent.putExtra(EuiccManager.EXTRA_EMBEDDED_SUBSCRIPTION_OPERATION_CODE,
-                        EuiccManager.OPERATION_DOWNLOAD);
+                        EuiccManager.OPERATION_SMDX);
 
                 onsProfileDownloader.onCallbackIntentReceived(intent,
                         EuiccManager.EMBEDDED_SUBSCRIPTION_RESULT_RESOLVABLE_ERROR);
@@ -320,7 +319,7 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
                 intent.putExtra(ONSProfileDownloader.PARAM_REQUEST_TYPE,
                         ONSProfileDownloader.REQUEST_CODE_DOWNLOAD_SUB);
                 intent.putExtra(EuiccManager.EXTRA_EMBEDDED_SUBSCRIPTION_OPERATION_CODE,
-                        EuiccManager.OPERATION_DOWNLOAD);
+                        EuiccManager.OPERATION_SIM_SLOT);
                 intent.putExtra(EuiccManager.EXTRA_EMBEDDED_SUBSCRIPTION_ERROR_CODE,
                         EuiccManager.ERROR_TIME_OUT);
 
@@ -432,7 +431,7 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
                 intent.putExtra(ONSProfileDownloader.PARAM_REQUEST_TYPE,
                         ONSProfileDownloader.REQUEST_CODE_DOWNLOAD_SUB);
                 intent.putExtra(EuiccManager.EXTRA_EMBEDDED_SUBSCRIPTION_OPERATION_CODE,
-                        EuiccManager.OPERATION_DOWNLOAD);
+                        EuiccManager.OPERATION_SMDX);
                 intent.putExtra(EuiccManager.EXTRA_EMBEDDED_SUBSCRIPTION_ERROR_CODE,
                         EuiccManager.ERROR_INVALID_RESPONSE);
 
@@ -472,42 +471,41 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
 
                 ONSProfileDownloader.DownloadRetryOperationCode res =
                         downloadHandler.mapDownloaderErrorCode(
-                        EuiccManager.EMBEDDED_SUBSCRIPTION_RESULT_OK, 0,
-                        EuiccManager.OPERATION_DOWNLOAD, 0);
+                        EuiccManager.EMBEDDED_SUBSCRIPTION_RESULT_OK, 0, 0, 0);
                 assertEquals(
                         ONSProfileDownloader.DownloadRetryOperationCode.DOWNLOAD_SUCCESSFUL, res);
 
                 res = downloadHandler.mapDownloaderErrorCode(
                         EuiccManager.EMBEDDED_SUBSCRIPTION_RESULT_RESOLVABLE_ERROR, 0,
-                        EuiccManager.OPERATION_DOWNLOAD,
+                        EuiccManager.OPERATION_EUICC_GSMA,
                         EuiccManager.ERROR_EUICC_INSUFFICIENT_MEMORY);
                 assertEquals(ONSProfileDownloader.DownloadRetryOperationCode
                         .ERR_MEMORY_FULL, res);
 
                 res = downloadHandler.mapDownloaderErrorCode(
                         EuiccManager.EMBEDDED_SUBSCRIPTION_RESULT_RESOLVABLE_ERROR, 0,
-                        EuiccManager.OPERATION_DOWNLOAD,
+                        EuiccManager.OPERATION_SIM_SLOT,
                         EuiccManager.ERROR_TIME_OUT);
                 assertEquals(ONSProfileDownloader.DownloadRetryOperationCode
                         .ERR_RETRY_DOWNLOAD, res);
 
                 res = downloadHandler.mapDownloaderErrorCode(
                         EuiccManager.EMBEDDED_SUBSCRIPTION_RESULT_RESOLVABLE_ERROR, 0,
-                        EuiccManager.OPERATION_DOWNLOAD,
+                        EuiccManager.OPERATION_SMDX,
                         EuiccManager.ERROR_CONNECTION_ERROR);
                 assertEquals(ONSProfileDownloader.DownloadRetryOperationCode
                         .ERR_RETRY_DOWNLOAD, res);
 
                 res = downloadHandler.mapDownloaderErrorCode(
                         EuiccManager.EMBEDDED_SUBSCRIPTION_RESULT_RESOLVABLE_ERROR, 0,
-                        EuiccManager.OPERATION_DOWNLOAD,
+                        EuiccManager.OPERATION_SMDX,
                         EuiccManager.ERROR_INVALID_RESPONSE);
                 assertEquals(ONSProfileDownloader.DownloadRetryOperationCode
                         .ERR_UNRESOLVABLE, res);
 
                 res = downloadHandler.mapDownloaderErrorCode(
                         EuiccManager.EMBEDDED_SUBSCRIPTION_RESULT_ERROR, 0,
-                        EuiccManager.OPERATION_DOWNLOAD,
+                        EuiccManager.OPERATION_SMDX,
                         EuiccManager.ERROR_INVALID_RESPONSE);
                 assertEquals(ONSProfileDownloader.DownloadRetryOperationCode
                         .ERR_UNRESOLVABLE, res);
