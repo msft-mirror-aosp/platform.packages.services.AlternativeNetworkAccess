@@ -127,10 +127,15 @@ public class ONSProfileConfigurator {
     @VisibleForTesting
     protected void groupWithPSIMAndSetOpportunistic(
             SubscriptionInfo opportunisticESIM, ParcelUuid groupUuid) {
-        Log.d(TAG, "Grouping opportunistc eSIM and CBRS pSIM");
-        ArrayList<Integer> subList = new ArrayList<>();
-        subList.add(opportunisticESIM.getSubscriptionId());
-        mSubscriptionManager.addSubscriptionsIntoGroup(subList, groupUuid);
+        if (groupUuid != null && groupUuid.equals(opportunisticESIM.getGroupUuid())) {
+            Log.d(TAG, "opportunistc eSIM and CBRS pSIM already grouped");
+        } else {
+            Log.d(TAG, "Grouping opportunistc eSIM and CBRS pSIM");
+            ArrayList<Integer> subList = new ArrayList<>();
+            subList.add(opportunisticESIM.getSubscriptionId());
+            mSubscriptionManager.addSubscriptionsIntoGroup(subList, groupUuid);
+        }
+
         if (!opportunisticESIM.isOpportunistic()) {
             Log.d(TAG, "set Opportunistic to TRUE");
             mSubscriptionManager.setOpportunistic(true,
