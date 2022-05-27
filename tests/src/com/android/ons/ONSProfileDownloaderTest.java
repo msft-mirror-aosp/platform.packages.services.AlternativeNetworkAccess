@@ -16,9 +16,12 @@
 
 package com.android.ons;
 
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyZeroInteractions;
 
@@ -42,7 +45,7 @@ import org.mockito.MockitoAnnotations;
 public class ONSProfileDownloaderTest extends ONSBaseTest {
     private static final String TAG = ONSProfileDownloaderTest.class.getName();
     private static final int TEST_SUB_ID = 1;
-    private static final String TEST_SMDP_ADDRESS = "LPA:1$TEST-ESIM.COM$";
+    private static final String TEST_SMDP_ADDRESS = "TEST-ESIM.COM";
 
     @Mock
     Context mMockContext;
@@ -593,6 +596,52 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
         }
 
         workerThread.exit();
+    }
+
+    @Test
+    public void testMultipleDownloadRequests() {
+        doReturn(TEST_SUB_ID).when(mMockSubInfo).getSubscriptionId();
+        PersistableBundle config = new PersistableBundle();
+        config.putString(CarrierConfigManager.KEY_SMDP_SERVER_ADDRESS_STRING, TEST_SMDP_ADDRESS);
+        doReturn(config).when(mMockCarrierConfigManager).getConfigForSubId(TEST_SUB_ID);
+
+        ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mContext,
+                mMockCarrierConfigManager, mMockEUICCManager, mMockONSProfileConfig,
+                mMockDownloadListener);
+
+        //When multiple download requests are received, download should be triggered only once.
+        onsProfileDownloader.downloadProfile(mMockSubInfo.getSubscriptionId());
+        onsProfileDownloader.downloadProfile(mMockSubInfo.getSubscriptionId());
+        onsProfileDownloader.downloadProfile(mMockSubInfo.getSubscriptionId());
+        onsProfileDownloader.downloadProfile(mMockSubInfo.getSubscriptionId());
+        verify(mMockEUICCManager, times(1)).downloadSubscription(any(), eq(true), any());
+
+        //Simulate response for download request from LPA.
+        Intent intent = new Intent(mContext, ONSProfileResultReceiver.class);
+        intent.setAction(ONSProfileDownloader.ACTION_ONS_ESIM_DOWNLOAD);
+        intent.putExtra(Intent.EXTRA_COMPONENT_NAME, ONSProfileDownloader.class.getName());
+        intent.putExtra(ONSProfileDownloader.PARAM_PRIMARY_SUBID, TEST_SUB_ID);
+        intent.putExtra(ONSProfileDownloader.PARAM_REQUEST_TYPE,
+                ONSProfileDownloader.REQUEST_CODE_DOWNLOAD_SUB);
+        intent.putExtra(EuiccManager.EXTRA_EMBEDDED_SUBSCRIPTION_OPERATION_CODE,
+                EuiccManager.OPERATION_DOWNLOAD);
+
+        onsProfileDownloader.onCallbackIntentReceived(intent,
+                EuiccManager.EMBEDDED_SUBSCRIPTION_RESULT_OK);
+
+        //Trigger new download after a sec
+        try {
+            Thread.sleep(1000);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        //After download response is received, new download requests should be processed.
+        onsProfileDownloader.downloadProfile(mMockSubInfo.getSubscriptionId());
+        onsProfileDownloader.downloadProfile(mMockSubInfo.getSubscriptionId());
+        onsProfileDownloader.downloadProfile(mMockSubInfo.getSubscriptionId());
+        onsProfileDownloader.downloadProfile(mMockSubInfo.getSubscriptionId());
+        verify(mMockEUICCManager, times(1)).downloadSubscription(any(), eq(true), any());
     }
 
     @After
