@@ -35,6 +35,7 @@ import android.os.Message;
 import android.os.RemoteException;
 import android.os.TelephonyServiceManager.ServiceRegisterer;
 import android.telephony.AvailableNetworkInfo;
+import android.telephony.CarrierConfigManager;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyFrameworkInitializer;
@@ -421,7 +422,7 @@ public class OpportunisticNetworkService extends Service {
                     }
                     break;
 
-                    case ONSProfileActivator.ACTION_CARRIER_CONFIG_CHANGED:
+                    case CarrierConfigManager.ACTION_CARRIER_CONFIG_CHANGED:
                         mONSProfileActivator.handleCarrierConfigChange();
                         break;
                 }
