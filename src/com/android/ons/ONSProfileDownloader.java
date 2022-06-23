@@ -58,7 +58,6 @@ public class ONSProfileDownloader {
     // ignore duplicate download requests when download is in progress.
     private int mDownloadingPSimSubId;
 
-    @VisibleForTesting
     protected enum DownloadRetryResultCode {
         DOWNLOAD_SUCCESSFUL,
         ERR_UNRESOLVABLE,
@@ -225,14 +224,12 @@ public class ONSProfileDownloader {
         return "Unknown";
     }
 
-    @VisibleForTesting
     protected enum DownloadProfileResult {
         SUCCESS,
         DUPLICATE_REQUEST,
         INVALID_SMDP_ADDRESS
     }
 
-    @VisibleForTesting
     protected DownloadProfileResult downloadProfile(int primarySubId) {
         Log.d(TAG, "downloadProfile");
 
