@@ -35,6 +35,7 @@ import android.telephony.euicc.EuiccManager;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.ons.ONSProfileDownloader.DownloadRetryResultCode;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -308,9 +309,9 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
     }
 
     @Override
-    public void onDownloadError(ONSProfileDownloader.DownloadRetryOperationCode operationCode,
-                                int pSIMSubId) {
-        switch (operationCode) {
+    public void onDownloadError(int pSIMSubId, DownloadRetryResultCode resultCode,
+             int detailedErrorCode) {
+        switch (resultCode) {
             case ERR_MEMORY_FULL: {
                 //eUICC Memory full occurred while downloading opportunistic eSIM.
 
@@ -354,8 +355,9 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
             }
             break;
 
-            case ERR_UNRESOLVABLE: {
-                //Stop download until SIM change or device reboot.
+            default: {
+                // Stop download until SIM change or device reboot.
+                Log.e(TAG, "Download failed with cause=" + resultCode);
             }
         }
     }
@@ -363,8 +365,7 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
     /**
      * Called when eSIM download fails. Listener is called after a delay based on retry count with
      * the error code: BACKOFF_TIMER_EXPIRED
-     * @param pSIMSubId
-     * @param retryCount
+     * @param pSIMSubId Primary Subscription ID
      */
     @VisibleForTesting
     protected void startBackoffTimer(int pSIMSubId) {
@@ -417,7 +418,7 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
      * attempts will not be made until next device reboot.
      *
      * @param subscriptionId subscription Id of the primary SIM.
-     * @return
+     * @return integer value for maximum allowed retry attempts.
      */
     private int getDownloadRetryMaxAttemptsVal(int subscriptionId) {
         PersistableBundle config = mCarrierConfigMgr.getConfigForSubId(subscriptionId);
