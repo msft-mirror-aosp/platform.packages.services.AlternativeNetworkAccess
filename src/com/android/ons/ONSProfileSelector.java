@@ -34,7 +34,6 @@ import android.telephony.CellInfoLte;
 import android.telephony.SignalStrength;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
-import android.telephony.TelephonyFrameworkInitializer;
 import android.telephony.TelephonyManager;
 import android.telephony.UiccCardInfo;
 import android.telephony.UiccPortInfo;
@@ -43,7 +42,6 @@ import android.text.TextUtils;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.ISetOpportunisticDataCallback;
-import com.android.internal.telephony.ISub;
 import com.android.internal.telephony.IUpdateAvailableNetworksCallback;
 import com.android.telephony.Rlog;
 
@@ -816,27 +814,12 @@ public class ONSProfileSelector {
             ISetOpportunisticDataCallback callbackStub) {
         if ((subId == SubscriptionManager.DEFAULT_SUBSCRIPTION_ID)
                 || (isOpprotunisticSub(subId) && mSubscriptionManager.isActiveSubId(subId))) {
-            ISub iSub = ISub.Stub.asInterface(
-                    TelephonyFrameworkInitializer
-                            .getTelephonyServiceManager()
-                            .getSubscriptionServiceRegisterer()
-                            .get());
-            if (iSub == null) {
-                log("Could not get Subscription Service handle");
-                if (Compatibility.isChangeEnabled(
-                        OpportunisticNetworkService.CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
-                    sendSetOpptCallbackHelper(callbackStub,
-                            TelephonyManager.SET_OPPORTUNISTIC_SUB_REMOTE_SERVICE_EXCEPTION);
-                } else {
-                    sendSetOpptCallbackHelper(callbackStub,
-                            TelephonyManager.SET_OPPORTUNISTIC_SUB_VALIDATION_FAILED);
-                }
-                return;
-            }
             try {
-                iSub.setPreferredDataSubscriptionId(subId, needValidation, callbackStub);
-            } catch (RemoteException ex) {
-                log("Could not connect to Subscription Service");
+                mSubscriptionManager.setPreferredDataSubscriptionId(subId, needValidation,
+                        mHandler::post, result -> sendSetOpptCallbackHelper(callbackStub, result));
+            } catch (Exception ex) {
+                log("setPreferredDataSubscriptionId failed. subId=" + subId + ", needValidation="
+                        + needValidation + ", ex=" + ex);
                 if (Compatibility.isChangeEnabled(
                         OpportunisticNetworkService.CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
                     sendSetOpptCallbackHelper(callbackStub,
