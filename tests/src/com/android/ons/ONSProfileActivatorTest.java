@@ -650,8 +650,9 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
         onsProfileActivator.mIsInternetConnAvailable = true;
 
         for (int idx = 0; idx <= maxRetryCount; idx++) {
-            onsProfileActivator.onDownloadError(ONSProfileDownloader
-                    .DownloadRetryOperationCode.ERR_RETRY_DOWNLOAD, TEST_SUBID_0);
+            onsProfileActivator.onDownloadError(
+                    TEST_SUBID_0,
+                    ONSProfileDownloader.DownloadRetryResultCode.ERR_RETRY_DOWNLOAD, 0);
 
             //Wait for Handler to process download message. Backoff delay + 500 milli secs.
             try {
