@@ -25,8 +25,10 @@ import android.os.Looper;
 import android.os.ServiceManager;
 import android.telephony.AvailableNetworkInfo;
 import android.telephony.CellIdentityLte;
+import android.telephony.CellIdentityNr;
 import android.telephony.CellInfo;
 import android.telephony.CellInfoLte;
+import android.telephony.CellInfoNr;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
@@ -46,6 +48,7 @@ import org.mockito.MockitoAnnotations;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -878,5 +881,18 @@ public class ONSProfileSelectorTest extends ONSBaseTest {
         mONSProfileSelector = new MyONSProfileSelector(mContext, null);
         int portIdx = mONSProfileSelector.getAvailableESIMPortIndex();
         assertEquals(portIdx, 1);
+    }
+
+    @Test
+    public void testGetMncMccFromCellInfoNr() {
+        mONSProfileSelector = new MyONSProfileSelector(mContext, null);
+
+        CellIdentityNr cellIdentityNr = new CellIdentityNr(0, 0, 0, new int[]{0}, "111", "222", 0,
+                "", "",  Collections.emptyList());
+
+        CellInfoNr cellinfoNr = new CellInfoNr(0, true, 0, cellIdentityNr, null);
+
+        assertEquals(mONSProfileSelector.getMcc(cellinfoNr), "111");
+        assertEquals(mONSProfileSelector.getMnc(cellinfoNr), "222");
     }
 }
