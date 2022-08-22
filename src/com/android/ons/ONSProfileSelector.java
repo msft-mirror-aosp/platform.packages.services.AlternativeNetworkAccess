@@ -31,6 +31,7 @@ import android.os.RemoteException;
 import android.telephony.AvailableNetworkInfo;
 import android.telephony.CellInfo;
 import android.telephony.CellInfoLte;
+import android.telephony.CellInfoNr;
 import android.telephony.SignalStrength;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
@@ -265,19 +266,27 @@ public class ONSProfileSelector {
         }
     }
 
-    private String getMcc(CellInfo cellInfo) {
+    @VisibleForTesting
+    protected String getMcc(CellInfo cellInfo) {
         String mcc = "";
         if (cellInfo instanceof CellInfoLte) {
             mcc = ((CellInfoLte) cellInfo).getCellIdentity().getMccString();
+        }
+        else if (cellInfo instanceof CellInfoNr) {
+            mcc = ((CellInfoNr) cellInfo).getCellIdentity().getMccString();
         }
 
         return mcc;
     }
 
-    private String getMnc(CellInfo cellInfo) {
+    @VisibleForTesting
+    protected String getMnc(CellInfo cellInfo) {
         String mnc = "";
         if (cellInfo instanceof CellInfoLte) {
             mnc = ((CellInfoLte) cellInfo).getCellIdentity().getMncString();
+        }
+        else if (cellInfo instanceof CellInfoNr) {
+            mnc = ((CellInfoNr) cellInfo).getCellIdentity().getMncString();
         }
 
         return mnc;
