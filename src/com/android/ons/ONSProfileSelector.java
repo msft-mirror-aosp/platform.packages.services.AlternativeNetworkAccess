@@ -31,6 +31,7 @@ import android.os.RemoteException;
 import android.telephony.AvailableNetworkInfo;
 import android.telephony.CellInfo;
 import android.telephony.CellInfoLte;
+import android.telephony.CellInfoNr;
 import android.telephony.SignalStrength;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
@@ -265,19 +266,27 @@ public class ONSProfileSelector {
         }
     }
 
-    private String getMcc(CellInfo cellInfo) {
+    @VisibleForTesting
+    protected String getMcc(CellInfo cellInfo) {
         String mcc = "";
         if (cellInfo instanceof CellInfoLte) {
             mcc = ((CellInfoLte) cellInfo).getCellIdentity().getMccString();
+        }
+        else if (cellInfo instanceof CellInfoNr) {
+            mcc = ((CellInfoNr) cellInfo).getCellIdentity().getMccString();
         }
 
         return mcc;
     }
 
-    private String getMnc(CellInfo cellInfo) {
+    @VisibleForTesting
+    protected String getMnc(CellInfo cellInfo) {
         String mnc = "";
         if (cellInfo instanceof CellInfoLte) {
             mnc = ((CellInfoLte) cellInfo).getCellIdentity().getMncString();
+        }
+        else if (cellInfo instanceof CellInfoNr) {
+            mnc = ((CellInfoNr) cellInfo).getCellIdentity().getMncString();
         }
 
         return mnc;
@@ -369,19 +378,27 @@ public class ONSProfileSelector {
     protected int getAvailableESIMPortIndex() {
         //Check if an opportunistic subscription is already active. If yes then, use the same port.
         List<SubscriptionInfo> subscriptionInfos = mSubscriptionManager
-                .getOpportunisticSubscriptions();
-        if (subscriptionInfos != null && subscriptionInfos.size() > 0) {
-            return subscriptionInfos.get(0).getPortIndex();
+                .getCompleteActiveSubscriptionInfoList();
+        if (subscriptionInfos != null) {
+            logDebug("[getAvailableESIMPortIndex] subscriptionInfos size:"
+                    + subscriptionInfos.size());
+            for (SubscriptionInfo subscriptionInfo : subscriptionInfos) {
+                if (subscriptionInfo.isEmbedded() && subscriptionInfo.isOpportunistic()) {
+                    return subscriptionInfo.getPortIndex();
+                }
+            }
         }
 
         //Look for available port.
         for (UiccCardInfo uiccCardInfo : mTelephonyManager.getUiccCardsInfo()) {
+            logDebug("[getAvailableESIMPortIndex] CardInfo: " + uiccCardInfo.toString());
             if (!uiccCardInfo.isEuicc()) {
                 continue;
             }
 
             EuiccManager euiccManager = mEuiccManager.createForCardId(uiccCardInfo.getCardId());
             for (UiccPortInfo uiccPortInfo : uiccCardInfo.getPorts()) {
+                logDebug("[getAvailableESIMPortIndex] PortInfo: " + uiccPortInfo.toString());
                 //Port is available if no profiles enabled on it.
                 if (euiccManager.isSimPortAvailable(uiccPortInfo.getPortIndex())) {
                     return uiccPortInfo.getPortIndex();
@@ -389,6 +406,7 @@ public class ONSProfileSelector {
             }
         }
 
+        logDebug("[getAvailableESIMPortIndex] No Port is available.");
         return TelephonyManager.INVALID_PORT_INDEX;
     }
 
