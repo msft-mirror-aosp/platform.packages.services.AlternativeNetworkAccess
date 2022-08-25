@@ -48,6 +48,8 @@ import java.util.Random;
 public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfigListener,
         ONSProfileDownloader.IONSProfileDownloaderListener {
 
+    public static final String ACTION_CARRIER_CONFIG_CHANGED =
+            "android.telephony.action.CARRIER_CONFIG_CHANGED";
     private static final String TAG = ONSProfileActivator.class.getName();
     private final Context mContext;
     private final SubscriptionManager mSubManager;
@@ -124,11 +126,11 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
     /**
      * Called when SIM state changes. Triggers CBRS Auto provisioning.
      */
-    public Result handleSimStateChange() {
-        final int simState = mTelephonyManager.getSimState();
+    public Result handleCarrierConfigChange() {
+        /*final int simState = mTelephonyManager.getSimState();
         if (simState != TelephonyManager.SIM_STATE_READY) {
             return Result.ERR_SIM_NOT_READY;
-        }
+        }*/
 
         Result res = provisionCBRS();
         Log.d(TAG, res.toString());
