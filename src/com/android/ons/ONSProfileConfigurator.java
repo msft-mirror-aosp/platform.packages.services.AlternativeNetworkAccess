@@ -156,7 +156,7 @@ public class ONSProfileConfigurator {
         PendingIntent callbackIntent = PendingIntent.getBroadcast(mContext,
                 REQUEST_CODE_ACTIVATE_SUB, intent, PendingIntent.FLAG_IMMUTABLE);
         Log.d(TAG, "Activate oppSub request sent to SubManager");
-        mSubscriptionManager.switchToSubscription(subId, callbackIntent);
+        mEuiccManager.switchToSubscription(subId, callbackIntent);
     }
 
     /**
