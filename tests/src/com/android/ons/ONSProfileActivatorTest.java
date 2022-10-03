@@ -77,6 +77,8 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
     List<SubscriptionInfo> mMocksubsInPSIMGroup;
     @Mock
     Resources mMockResources;
+    @Mock
+    ONSStats mMockONSStats;
 
     @Before
     public void setUp() throws Exception {
@@ -143,7 +145,8 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
 
         ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
                 mMockSubManager, mMockTeleManager, mMockCarrierConfigManager, mMockEuiccManager,
-                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
+                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader,
+                mMockONSStats);
 
         assertEquals(ONSProfileActivator.Result.ERR_AUTO_PROVISIONING_DISABLED,
                 onsProfileActivator.handleCarrierConfigChange());
@@ -157,7 +160,8 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
 
         ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
                 mMockSubManager, mMockTeleManager, mMockCarrierConfigManager, mMockEuiccManager,
-                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
+                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader,
+                mMockONSStats);
 
         assertEquals(ONSProfileActivator.Result.ERR_ESIM_NOT_SUPPORTED,
                 onsProfileActivator.handleCarrierConfigChange());
@@ -174,7 +178,8 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
 
         ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
                 mMockSubManager, mMockTeleManager, mMockCarrierConfigManager, mMockEuiccManager,
-                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
+                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader,
+                mMockONSStats);
 
         assertEquals(ONSProfileActivator.Result.ERR_MULTISIM_NOT_SUPPORTED,
                 onsProfileActivator.handleCarrierConfigChange());
@@ -196,7 +201,8 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
 
         ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
                 mMockSubManager, mMockTeleManager, mMockCarrierConfigManager, mMockEuiccManager,
-                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
+                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader,
+                mMockONSStats);
 
         assertEquals(ONSProfileActivator.Result.ERR_CANNOT_SWITCH_TO_DUAL_SIM_MODE,
                 onsProfileActivator.handleCarrierConfigChange());
@@ -219,7 +225,8 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
 
         ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
                 mMockSubManager, mMockTeleManager, mMockCarrierConfigManager, mMockEuiccManager,
-                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
+                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader,
+                mMockONSStats);
 
         assertEquals(ONSProfileActivator.Result.ERR_SWITCHING_TO_DUAL_SIM_MODE,
                 onsProfileActivator.handleCarrierConfigChange());
@@ -237,7 +244,8 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
 
         ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
                 mMockSubManager, mMockTeleManager, mMockCarrierConfigManager, mMockEuiccManager,
-                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
+                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader,
+                mMockONSStats);
 
         assertEquals(ONSProfileActivator.Result.ERR_NO_SIM_INSERTED,
                 onsProfileActivator.handleCarrierConfigChange());
@@ -265,7 +273,8 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
 
         ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
                 mMockSubManager, mMockTeleManager, mMockCarrierConfigManager, mMockEuiccManager,
-                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
+                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader,
+                mMockONSStats);
 
         assertEquals(ONSProfileActivator.Result.ERR_CARRIER_DOESNT_SUPPORT_CBRS,
                 onsProfileActivator.handleCarrierConfigChange());
@@ -289,7 +298,8 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
 
         ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
                 mMockSubManager, mMockTeleManager, mMockCarrierConfigManager, mMockEuiccManager,
-                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
+                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader,
+                mMockONSStats);
 
         assertEquals(ONSProfileActivator.Result.ERR_DUAL_ACTIVE_SUBSCRIPTIONS,
                 onsProfileActivator.handleCarrierConfigChange());
@@ -318,7 +328,8 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
 
         ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
                 mMockSubManager, mMockTeleManager, mMockCarrierConfigManager, mMockEuiccManager,
-                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
+                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader,
+                mMockONSStats);
 
         assertEquals(ONSProfileActivator.Result.ERR_DUAL_ACTIVE_SUBSCRIPTIONS,
                 onsProfileActivator.handleCarrierConfigChange());
@@ -364,7 +375,8 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
 
         ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
                 mMockSubManager, mMockTeleManager, mMockCarrierConfigManager, mMockEuiccManager,
-                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
+                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader,
+                mMockONSStats);
 
         assertEquals(ONSProfileActivator.Result.SUCCESS,
                 onsProfileActivator.handleCarrierConfigChange());
@@ -385,7 +397,8 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
 
         ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
                 mMockSubManager, mMockTeleManager, mMockCarrierConfigManager, mMockEuiccManager,
-                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
+                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader,
+                mMockONSStats);
 
         assertEquals(ONSProfileActivator.Result.ERR_SINGLE_ACTIVE_OPPORTUNISTIC_SIM,
                 onsProfileActivator.handleCarrierConfigChange());
@@ -411,10 +424,11 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
 
         ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
                 mMockSubManager, mMockTeleManager, mMockCarrierConfigManager, mMockEuiccManager,
-                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader);
+                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader,
+                mMockONSStats);
 
         onsProfileActivator.mIsInternetConnAvailable = true;
-        assertEquals(ONSProfileActivator.Result.SUCCESS,
+        assertEquals(ONSProfileActivator.Result.DOWNLOAD_REQUESTED,
                 onsProfileActivator.handleCarrierConfigChange());
     }
 
@@ -493,7 +507,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
         ONSProfileActivator onsProfileActivator =
                 new ONSProfileActivator(mMockContext, mMockSubManager, mMockEuiCCManager,
                 mMockTeleManager,
-                        mMockONSProfileConfigurator, mMockONSProfileDownloader);
+                        mMockONSProfileConfigurator, mMockONSProfileDownloader, mMockONSStats);
 
         assertEquals(ONSProfileActivator.Result.SUCCESS,
                 onsProfileActivator.handleSimStateChange());
@@ -568,7 +582,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
         //TODO: mock ParcelUuid - pSIM group
 
         ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
-                mMockONSProfileConfigurator, mMockONSProfileDownloader);
+                mMockONSProfileConfigurator, mMockONSProfileDownloader, mMockONSStats);
 
         assertEquals(ONSProfileActivator.Result.ERR_INVALID_PSIM_SUBID,
                 onsProfileActivator.retryDownloadAfterReboot());
@@ -626,7 +640,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
                 mOnsProfileActivator = new ONSProfileActivator(mMockContext,
                         mMockSubManager, mMockTeleManager, mMockCarrierConfigManager,
                         mMockEuiccManager, mMockConnectivityManager, mMockONSProfileConfigurator,
-                        mMockONSProfileDownloader);
+                        mMockONSProfileDownloader, mMockONSStats);
 
                 synchronized (lock) {
                     lock.notify();
@@ -650,8 +664,9 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
         onsProfileActivator.mIsInternetConnAvailable = true;
 
         for (int idx = 0; idx <= maxRetryCount; idx++) {
-            onsProfileActivator.onDownloadError(ONSProfileDownloader
-                    .DownloadRetryOperationCode.ERR_RETRY_DOWNLOAD, TEST_SUBID_0);
+            onsProfileActivator.onDownloadError(
+                    TEST_SUBID_0,
+                    ONSProfileDownloader.DownloadRetryResultCode.ERR_RETRY_DOWNLOAD, 0);
 
             //Wait for Handler to process download message. Backoff delay + 500 milli secs.
             try {
