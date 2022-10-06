@@ -35,6 +35,7 @@ import android.os.Message;
 import android.os.RemoteException;
 import android.os.TelephonyServiceManager.ServiceRegisterer;
 import android.telephony.AvailableNetworkInfo;
+import android.telephony.CarrierConfigManager;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyFrameworkInitializer;
@@ -62,6 +63,7 @@ public class OpportunisticNetworkService extends Service {
     private TelephonyManager mTelephonyManager;
     @VisibleForTesting protected SubscriptionManager mSubscriptionManager;
     private ONSProfileActivator mONSProfileActivator;
+    private ONSStats mONSStats;
     private Handler mHandler = null;
 
     private final Object mLock = new Object();
@@ -421,7 +423,7 @@ public class OpportunisticNetworkService extends Service {
                     }
                     break;
 
-                    case ONSProfileActivator.ACTION_CARRIER_CONFIG_CHANGED:
+                    case CarrierConfigManager.ACTION_CARRIER_CONFIG_CHANGED:
                         mONSProfileActivator.handleCarrierConfigChange();
                         break;
                 }
@@ -455,10 +457,11 @@ public class OpportunisticNetworkService extends Service {
         mSubscriptionManager = (SubscriptionManager) mContext.getSystemService(
                 Context.TELEPHONY_SUBSCRIPTION_SERVICE);
         mONSConfigInputHashMap = new HashMap<String, ONSConfigInput>();
+        mONSStats = new ONSStats(mContext, mSubscriptionManager);
         mContext.registerReceiver(mBroadcastReceiver,
             new IntentFilter(TelephonyIntents.ACTION_SIM_STATE_CHANGED));
         enableOpportunisticNetwork(getPersistentEnableState());
-        mONSProfileActivator = new ONSProfileActivator(mContext);
+        mONSProfileActivator = new ONSProfileActivator(mContext, mONSStats);
     }
 
     private void handleCarrierAppAvailableNetworks(
