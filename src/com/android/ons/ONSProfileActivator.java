@@ -173,12 +173,13 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
 
         //Check the number of active subscriptions.
         List<SubscriptionInfo> activeSubInfos = mSubManager.getActiveSubscriptionInfoList();
+        if (activeSubInfos == null || activeSubInfos.size() <= 0) {
+            return Result.ERR_NO_SIM_INSERTED;
+        }
         int activeSubCount = activeSubInfos.size();
         Log.d(TAG, "Active subscription count:" + activeSubCount);
 
-        if (activeSubCount <= 0) {
-            return Result.ERR_NO_SIM_INSERTED;
-        } else if (activeSubCount == 1) {
+        if (activeSubCount == 1) {
             SubscriptionInfo pSubInfo = activeSubInfos.get(0);
             if (pSubInfo.isOpportunistic()) {
                 //Only one SIM is active and its opportunistic SIM.
