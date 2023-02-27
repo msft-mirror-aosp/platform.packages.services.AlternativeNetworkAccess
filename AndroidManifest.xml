@@ -56,9 +56,6 @@
             <intent-filter>
                 <action android:name="com.android.ons.action.ESIM_CONFIG"/>
             </intent-filter>
-            <intent-filter>
-                <action android:name="android.telephony.action.CARRIER_CONFIG_CHANGED"/>
-            </intent-filter>
         </receiver>
     </application>
 </manifest>
