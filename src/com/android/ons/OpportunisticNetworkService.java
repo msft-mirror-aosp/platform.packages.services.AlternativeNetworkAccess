@@ -71,7 +71,6 @@ public class OpportunisticNetworkService extends Service {
     @VisibleForTesting protected ONSProfileSelector mProfileSelector;
     private SharedPreferences mSharedPref;
     @VisibleForTesting protected HashMap<String, ONSConfigInput> mONSConfigInputHashMap;
-    private CarrierConfigManager.CarrierConfigChangeListener mCarrierConfigChangeListener;
 
     private static final String TAG = "ONS";
     private static final String PREF_NAME = TAG;
@@ -423,6 +422,10 @@ public class OpportunisticNetworkService extends Service {
                         );
                     }
                     break;
+
+                    case CarrierConfigManager.ACTION_CARRIER_CONFIG_CHANGED:
+                        mONSProfileActivator.handleCarrierConfigChange();
+                        break;
                 }
             }
         }.setIntent(intent));
@@ -435,12 +438,6 @@ public class OpportunisticNetworkService extends Service {
         super.onDestroy();
         log("Destroyed Successfully...");
         mHandler.getLooper().quitSafely();
-
-        // Unregister carrier configuration listener
-        CarrierConfigManager ccm = mContext.getSystemService(CarrierConfigManager.class);
-        if (ccm != null && mCarrierConfigChangeListener != null) {
-            ccm.unregisterCarrierConfigChangeListener(mCarrierConfigChangeListener);
-        }
     }
 
     /**
@@ -465,15 +462,6 @@ public class OpportunisticNetworkService extends Service {
             new IntentFilter(TelephonyIntents.ACTION_SIM_STATE_CHANGED));
         enableOpportunisticNetwork(getPersistentEnableState());
         mONSProfileActivator = new ONSProfileActivator(mContext, mONSStats);
-        // Register carrier configuration change listener.
-        CarrierConfigManager ccm = mContext.getSystemService(CarrierConfigManager.class);
-        if (ccm != null) {
-            mCarrierConfigChangeListener = (slotIndex, subId, carrierId, specificCarrierId)
-                    -> mONSProfileActivator.handleCarrierConfigChange();
-            ccm.registerCarrierConfigChangeListener(mHandler::post, mCarrierConfigChangeListener);
-        } else {
-            log("Unable to register carrier configuration listener.");
-        }
     }
 
     private void handleCarrierAppAvailableNetworks(
