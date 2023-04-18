@@ -313,10 +313,19 @@ public class OpportunisticNetworkService extends Service {
         @Override
         public int getPreferredDataSubscriptionId(String callingPackage,
                 String callingFeatureId) {
-            TelephonyPermissions
-                    .checkCallingOrSelfReadPhoneState(mContext,
-                            mSubscriptionManager.getDefaultSubscriptionId(),
-                            callingPackage, callingFeatureId, "getPreferredDataSubscriptionId");
+            if (!TelephonyPermissions.checkReadPhoneStateOnAnyActiveSub(
+                    mContext,
+                    Binder.getCallingPid(),
+                    Binder.getCallingUid(),
+                    callingPackage,
+                    callingFeatureId,
+                    "getPreferredDataSubscriptionId")) {
+                throw new SecurityException(
+                        "getPreferredDataSubscriptionId requires READ_PHONE_STATE,"
+                        + " READ_PRIVILEGED_PHONE_STATE, or carrier privileges on"
+                        + " any active subscription.");
+            }
+
             final long identity = Binder.clearCallingIdentity();
             try {
                 return mProfileSelector.getPreferredDataSubscriptionId();
