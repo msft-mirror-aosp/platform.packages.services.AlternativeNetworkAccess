@@ -133,7 +133,12 @@ public class ONSProfileConfigurator {
             Log.d(TAG, "Grouping opportunistc eSIM and CBRS pSIM");
             ArrayList<Integer> subList = new ArrayList<>();
             subList.add(opportunisticESIM.getSubscriptionId());
-            mSubscriptionManager.addSubscriptionsIntoGroup(subList, groupUuid);
+            try {
+                mSubscriptionManager.addSubscriptionsIntoGroup(subList, groupUuid);
+            } catch (RuntimeException re) {
+                // Telephony not found
+                Log.e(TAG, "Subscription group add failed.", re);
+            }
         }
 
         if (!opportunisticESIM.isOpportunistic()) {
@@ -245,7 +250,14 @@ public class ONSProfileConfigurator {
         Log.d(TAG, "Creating Group for Primary SIM");
         List<Integer> pSubList = new ArrayList<>();
         pSubList.add(primaryCBRSSubInfo.getSubscriptionId());
-        return mSubscriptionManager.createSubscriptionGroup(pSubList);
+        ParcelUuid puid = null;
+        try {
+            puid = mSubscriptionManager.createSubscriptionGroup(pSubList);
+        } catch (RuntimeException re) {
+            // Telephony not found
+            Log.e(TAG, "Subscription group creation failed.", re);
+        }
+        return puid;
     }
 
     /**
