@@ -34,6 +34,7 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.RemoteException;
 import android.os.TelephonyServiceManager.ServiceRegisterer;
+import android.os.UserManager;
 import android.telephony.AvailableNetworkInfo;
 import android.telephony.CarrierConfigManager;
 import android.telephony.SubscriptionInfo;
@@ -62,7 +63,7 @@ public class OpportunisticNetworkService extends Service {
     @VisibleForTesting protected Context mContext;
     private TelephonyManager mTelephonyManager;
     @VisibleForTesting protected SubscriptionManager mSubscriptionManager;
-    private ONSProfileActivator mONSProfileActivator;
+    @VisibleForTesting protected ONSProfileActivator mONSProfileActivator;
     private ONSStats mONSStats;
     private Handler mHandler = null;
 
@@ -80,6 +81,8 @@ public class OpportunisticNetworkService extends Service {
     private static final boolean DBG = true;
     /* message to indicate sim state update */
     private static final int MSG_SIM_STATE_CHANGE = 1;
+    @VisibleForTesting protected CarrierConfigManager mCarrierConfigManager;
+    @VisibleForTesting protected UserManager mUserManager;
 
     /**
      * To expand the error codes for {@link TelephonyManager#updateAvailableNetworks} and
@@ -431,10 +434,6 @@ public class OpportunisticNetworkService extends Service {
                         );
                     }
                     break;
-
-                    case CarrierConfigManager.ACTION_CARRIER_CONFIG_CHANGED:
-                        mONSProfileActivator.handleCarrierConfigChange();
-                        break;
                 }
             }
         }.setIntent(intent));
@@ -447,6 +446,11 @@ public class OpportunisticNetworkService extends Service {
         super.onDestroy();
         log("Destroyed Successfully...");
         mHandler.getLooper().quitSafely();
+
+        if (mCarrierConfigManager != null && mCarrierConfigChangeListener != null) {
+            mCarrierConfigManager.unregisterCarrierConfigChangeListener(
+                    mCarrierConfigChangeListener);
+        }
     }
 
     /**
@@ -471,7 +475,53 @@ public class OpportunisticNetworkService extends Service {
             new IntentFilter(TelephonyIntents.ACTION_SIM_STATE_CHANGED));
         enableOpportunisticNetwork(getPersistentEnableState());
         mONSProfileActivator = new ONSProfileActivator(mContext, mONSStats);
+        mCarrierConfigManager = mContext.getSystemService(CarrierConfigManager.class);
+        // Registers for carrier config changes and runs on handler thread
+        mCarrierConfigManager.registerCarrierConfigChangeListener(mHandler::post,
+                mCarrierConfigChangeListener);
+        mUserManager = mContext.getSystemService(UserManager.class);
     }
+
+    /**
+     * This is only register CarrierConfigChangeListener for testing
+     */
+    @VisibleForTesting
+    protected void registerCarrierConfigChangListener() {
+        mCarrierConfigManager.registerCarrierConfigChangeListener(mHandler::post,
+                mCarrierConfigChangeListener);
+    }
+
+    private final CarrierConfigManager.CarrierConfigChangeListener mCarrierConfigChangeListener =
+            new CarrierConfigManager.CarrierConfigChangeListener() {
+                @Override
+                public void onCarrierConfigChanged(int logicalSlotIndex, int subscriptionId,
+                        int carrierId, int specificCarrierId) {
+
+                    boolean isUserUnlocked = mUserManager.isUserUnlocked();
+                    if (isUserUnlocked) {
+                        mONSProfileActivator.handleCarrierConfigChange();
+                    } else {
+                        log("User is locked");
+                        // Register the UnlockReceiver for trigger after Unlocked.
+                        mContext.registerReceiver(mUserUnlockedReceiver, new IntentFilter(
+                                        Intent.ACTION_USER_UNLOCKED));
+                    }
+                }
+            };
+
+    /**
+     * This is only sent to registered receivers, not manifest receivers.
+     * Note: The user's actual state might have changed by the time the broadcast is received.
+     */
+    private final BroadcastReceiver mUserUnlockedReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (Intent.ACTION_USER_UNLOCKED.equals(intent.getAction())) {
+                log("Received UserUnlockedReceiver");
+                mONSProfileActivator.handleCarrierConfigChange();
+            }
+        }
+    };
 
     private void handleCarrierAppAvailableNetworks(
             ArrayList<AvailableNetworkInfo> availableNetworks,
