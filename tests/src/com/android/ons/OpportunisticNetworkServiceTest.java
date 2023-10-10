@@ -20,11 +20,16 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
 import android.os.Looper;
 import android.os.RemoteException;
+import android.os.UserManager;
 import android.telephony.AvailableNetworkInfo;
+import android.telephony.CarrierConfigManager;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyFrameworkInitializer;
@@ -41,6 +46,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 
 import java.util.ArrayList;
@@ -62,6 +68,14 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
     private HashMap<String, ONSConfigInput> mockONSConfigInputHashMap;
     @Mock
     private ONSProfileSelector mockProfileSelector;
+    @Mock
+    private CarrierConfigManager mCarrierConfigManager;
+    @Mock
+    private ONSProfileActivator mONSProfileActivator;
+    @Mock
+    private UserManager mUserManager;
+    @Mock
+    private Context mMockContext;
 
     @Before
     public void setUp() throws Exception {
@@ -362,6 +376,43 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
             Log.e(TAG, "RemoteException", ex);
         }
         verify(mockProfileSelector, times(1)).stopProfileSelection(any());
+    }
+
+    @Test
+    public void testCarrierConfigChangedUnlocked() {
+        mOpportunisticNetworkService.mUserManager = mUserManager;
+        mOpportunisticNetworkService.mONSProfileActivator = mONSProfileActivator;
+        mOpportunisticNetworkService.mCarrierConfigManager = mCarrierConfigManager;
+        mOpportunisticNetworkService.registerCarrierConfigChangListener();
+        mOpportunisticNetworkService.mContext = mMockContext;
+
+        CarrierConfigManager.CarrierConfigChangeListener CarrierConfigChangeListener;
+
+        final ArgumentCaptor<CarrierConfigManager.CarrierConfigChangeListener> listenerCaptor =
+                ArgumentCaptor.forClass(CarrierConfigManager.CarrierConfigChangeListener.class);
+
+        verify(mCarrierConfigManager).registerCarrierConfigChangeListener(any(),
+                listenerCaptor.capture());
+        CarrierConfigChangeListener = listenerCaptor.getAllValues().get(0);
+
+        // CarrierConfigChange in lock state
+        when(mUserManager.isUserUnlocked()).thenReturn(false);
+        CarrierConfigChangeListener.onCarrierConfigChanged(0, 0, 0, 0);
+        verify(mONSProfileActivator, never()).handleCarrierConfigChange();
+
+        // handle CarrierConfigChange when state is changed from lock to unlock
+        final ArgumentCaptor<BroadcastReceiver> broadcastReceiverCaptor =
+                ArgumentCaptor.forClass(BroadcastReceiver.class);
+
+        verify(mMockContext).registerReceiver(broadcastReceiverCaptor.capture(), any());
+        broadcastReceiverCaptor.getValue().onReceive(mMockContext,
+                new Intent(Intent.ACTION_USER_UNLOCKED));
+        verify(mONSProfileActivator, times(1)).handleCarrierConfigChange();
+
+        // CarrierConfigChange in Unlock state
+        when(mUserManager.isUserUnlocked()).thenReturn(true);
+        CarrierConfigChangeListener.onCarrierConfigChanged(0, 0, 0, 0);
+        verify(mONSProfileActivator, times(2)).handleCarrierConfigChange();
     }
 
     private IOns getIOns() {

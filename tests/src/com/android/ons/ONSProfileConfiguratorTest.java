@@ -131,7 +131,7 @@ public class ONSProfileConfiguratorTest extends ONSBaseTest {
                         PendingIntent.FLAG_IMMUTABLE);
 
         mOnsProfileConfigurator.activateSubscription(TEST_SUB_ID);
-        verify(mMockSubManager).switchToSubscription(TEST_SUB_ID, callbackIntent);
+        verify(mMockEuiccMngr).switchToSubscription(TEST_SUB_ID, callbackIntent);
     }
 
     @Test
