@@ -251,6 +251,23 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
                 onsProfileActivator.handleCarrierConfigChange());
     }
 
+    public void testNullActiveSubscriptionList() {
+
+        doReturn(true).when(mMockResources).getBoolean(R.bool.enable_ons_auto_provisioning);
+        doReturn(true).when(mMockEuiccManager).isEnabled();
+        doReturn(2).when(mMockTeleManager).getSupportedModemCount();
+        doReturn(2).when(mMockTeleManager).getActiveModemCount();
+        doReturn(null).when(mMockSubManager).getActiveSubscriptionInfoList();
+
+        ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
+                mMockSubManager, mMockTeleManager, mMockCarrierConfigManager, mMockEuiccManager,
+                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader,
+                mMockONSStats);
+
+        assertEquals(ONSProfileActivator.Result.ERR_NO_SIM_INSERTED,
+                onsProfileActivator.handleCarrierConfigChange());
+    }
+
     @Test
     //@DisplayName("Dual SIM device and non CBRS carrier pSIM inserted")
     public void testNonCBRSCarrierPSIMInserted() {

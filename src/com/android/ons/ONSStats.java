@@ -151,7 +151,7 @@ public class ONSStats {
             // add subscription id for carrier if it doesn't support CBRS.
             if (result == Result.ERR_CARRIER_DOESNT_SUPPORT_CBRS) {
                 List<SubscriptionInfo> subInfos =
-                        mSubscriptionManager.getAvailableSubscriptionInfoList();
+                        mSubscriptionManager.getActiveSubscriptionInfoList();
                 info.setPrimarySimSubId(
                         (subInfos != null && !subInfos.isEmpty())
                                 ? subInfos.get(0).getSubscriptionId()
