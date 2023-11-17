@@ -16,7 +16,12 @@
 
 package com.android.ons;
 
+import static android.telephony.TelephonyManager.ENABLE_FEATURE_MAPPING;
+
+import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.app.Service;
+import android.app.compat.CompatChanges;
 import android.compat.Compatibility;
 import android.compat.annotation.ChangeId;
 import android.compat.annotation.EnabledAfter;
@@ -63,6 +68,7 @@ import java.util.List;
 public class OpportunisticNetworkService extends Service {
     @VisibleForTesting protected Context mContext;
     private TelephonyManager mTelephonyManager;
+    @VisibleForTesting protected PackageManager mPackageManager;
     @VisibleForTesting protected SubscriptionManager mSubscriptionManager;
     @VisibleForTesting protected ONSProfileActivator mONSProfileActivator;
     private ONSStats mONSStats;
@@ -226,6 +232,10 @@ public class OpportunisticNetworkService extends Service {
         public boolean setEnable(boolean enable, String callingPackage) {
             TelephonyPermissions.enforceCallingOrSelfModifyPermissionOrCarrierPrivilege(
                     mContext, mSubscriptionManager.getDefaultSubscriptionId(), "setEnable");
+
+            enforceTelephonyFeatureWithException(callingPackage,
+                    PackageManager.FEATURE_TELEPHONY_RADIO_ACCESS, "setEnable");
+
             log("setEnable: " + enable);
 
             final long identity = Binder.clearCallingIdentity();
@@ -256,6 +266,10 @@ public class OpportunisticNetworkService extends Service {
             TelephonyPermissions
                     .enforceCallingOrSelfReadPrivilegedPhoneStatePermissionOrCarrierPrivilege(
                             mContext, mSubscriptionManager.getDefaultSubscriptionId(), "isEnabled");
+
+            enforceTelephonyFeatureWithException(callingPackage,
+                    PackageManager.FEATURE_TELEPHONY_RADIO_ACCESS, "isEnabled");
+
             return mIsEnabled;
         }
 
@@ -293,6 +307,8 @@ public class OpportunisticNetworkService extends Service {
                 }
             }
 
+            enforceTelephonyFeatureWithException(callingPackage,
+                    PackageManager.FEATURE_TELEPHONY_DATA, "setPreferredDataSubscriptionId");
 
             final long identity = Binder.clearCallingIdentity();
             try {
@@ -330,6 +346,9 @@ public class OpportunisticNetworkService extends Service {
                         + " any active subscription.");
             }
 
+            enforceTelephonyFeatureWithException(callingPackage,
+                    PackageManager.FEATURE_TELEPHONY_DATA, "getPreferredDataSubscriptionId");
+
             final long identity = Binder.clearCallingIdentity();
             try {
                 return mProfileSelector.getPreferredDataSubscriptionId();
@@ -360,12 +379,20 @@ public class OpportunisticNetworkService extends Service {
             logDebug("updateAvailableNetworks: " + availableNetworks);
             /* check if system app */
             if (enforceModifyPhoneStatePermission(mContext)) {
+
+                enforceTelephonyFeatureWithException(callingPackage,
+                        PackageManager.FEATURE_TELEPHONY_RADIO_ACCESS, "updateAvailableNetworks");
+
                 handleSystemAppAvailableNetworks(
                         (ArrayList<AvailableNetworkInfo>) availableNetworks, callbackStub);
             } else {
                 /* check if the app has primary carrier permission */
                 TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(mContext,
                         mSubscriptionManager.getDefaultSubscriptionId(), "updateAvailableNetworks");
+
+                enforceTelephonyFeatureWithException(callingPackage,
+                        PackageManager.FEATURE_TELEPHONY_RADIO_ACCESS, "updateAvailableNetworks");
+
                 handleCarrierAppAvailableNetworks(
                         (ArrayList<AvailableNetworkInfo>) availableNetworks, callbackStub,
                         callingPackage);
@@ -484,6 +511,7 @@ public class OpportunisticNetworkService extends Service {
         mCarrierConfigManager.registerCarrierConfigChangeListener(mHandler::post,
                 mCarrierConfigChangeListener);
         mUserManager = mContext.getSystemService(UserManager.class);
+        mPackageManager = mContext.getPackageManager();
     }
 
     /**
@@ -768,6 +796,29 @@ public class OpportunisticNetworkService extends Service {
             }
         }
         logDebug("service is enable state " + mIsEnabled);
+    }
+
+    /**
+     * Make sure the device has required telephony feature
+     *
+     * @throws UnsupportedOperationException if the device does not have required telephony feature
+     */
+    private void enforceTelephonyFeatureWithException(@Nullable String callingPackage,
+            @NonNull String telephonyFeature, @NonNull String methodName) {
+        if (callingPackage == null || mPackageManager == null) {
+            return;
+        }
+
+        if (!Flags.enforceTelephonyFeatureMappingForPublicApis()
+                || !CompatChanges.isChangeEnabled(ENABLE_FEATURE_MAPPING, callingPackage,
+                Binder.getCallingUserHandle())) {
+            return;
+        }
+
+        if (!mPackageManager.hasSystemFeature(telephonyFeature)) {
+            throw new UnsupportedOperationException(
+                    methodName + " is unsupported without " + telephonyFeature);
+        }
     }
 
     private void log(String msg) {
