@@ -35,6 +35,7 @@ import android.telephony.euicc.EuiccManager;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.telephony.flags.Flags;
 import com.android.ons.ONSProfileDownloader.DownloadRetryResultCode;
 
 import java.util.ArrayList;
@@ -67,7 +68,11 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
 
     public ONSProfileActivator(Context context, ONSStats onsStats) {
         mContext = context;
-        mSubManager = mContext.getSystemService(SubscriptionManager.class);
+        SubscriptionManager sm = mContext.getSystemService(SubscriptionManager.class);
+        if (Flags.workProfileApiSplit()) {
+            sm = sm.createForAllUserProfiles();
+        }
+        mSubManager = sm;
         mTelephonyManager = mContext.getSystemService(TelephonyManager.class);
         mCarrierConfigMgr = mContext.getSystemService(CarrierConfigManager.class);
         mEuiccManager = mContext.getSystemService(EuiccManager.class);
