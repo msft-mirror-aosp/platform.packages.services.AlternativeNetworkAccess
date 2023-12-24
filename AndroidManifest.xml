@@ -32,7 +32,8 @@
 
         <receiver android:name="ONSAutoBoot"
             android:exported="true"
-            android:directBootAware="true">
+            android:directBootAware="true"
+            androidprv:systemUserOnly="true">
             <intent-filter>
                 <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
             </intent-filter>
@@ -46,7 +47,8 @@
 
         <receiver android:name=".ONSProfileResultReceiver"
             android:enabled="true"
-            android:exported="true">
+            android:exported="true"
+            androidprv:systemUserOnly="true">
             <intent-filter>
                 <action android:name="android.telephony.action.MULTI_SIM_CONFIG_CHANGED"/>
             </intent-filter>
