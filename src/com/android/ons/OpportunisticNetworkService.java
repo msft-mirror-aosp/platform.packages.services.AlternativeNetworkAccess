@@ -48,6 +48,7 @@ import com.android.internal.telephony.ISetOpportunisticDataCallback;
 import com.android.internal.telephony.IUpdateAvailableNetworksCallback;
 import com.android.internal.telephony.TelephonyIntents;
 import com.android.internal.telephony.TelephonyPermissions;
+import com.android.internal.telephony.flags.Flags;
 import com.android.telephony.Rlog;
 
 import java.util.ArrayList;
@@ -469,6 +470,9 @@ public class OpportunisticNetworkService extends Service {
                 PREF_NAME, Context.MODE_PRIVATE);
         mSubscriptionManager = (SubscriptionManager) mContext.getSystemService(
                 Context.TELEPHONY_SUBSCRIPTION_SERVICE);
+        if (Flags.workProfileApiSplit()) {
+            mSubscriptionManager = mSubscriptionManager.createForAllUserProfiles();
+        }
         mONSConfigInputHashMap = new HashMap<String, ONSConfigInput>();
         mONSStats = new ONSStats(mContext, mSubscriptionManager);
         mContext.registerReceiver(mBroadcastReceiver,
