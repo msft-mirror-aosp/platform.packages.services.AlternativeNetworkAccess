@@ -15,6 +15,7 @@
  */
 package com.android.ons;
 
+import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
@@ -22,12 +23,15 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.compat.testing.PlatformCompatChangeRule;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Looper;
 import android.os.RemoteException;
 import android.os.UserManager;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.telephony.AvailableNetworkInfo;
 import android.telephony.CarrierConfigManager;
 import android.telephony.SubscriptionInfo;
@@ -41,10 +45,15 @@ import androidx.test.runner.AndroidJUnit4;
 import com.android.internal.telephony.IOns;
 import com.android.internal.telephony.ISetOpportunisticDataCallback;
 import com.android.internal.telephony.IUpdateAvailableNetworksCallback;
+import com.android.internal.telephony.flags.Flags;
+
+import libcore.junit.util.compat.CoreCompatChangeRule.EnableCompatChanges;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
@@ -54,6 +63,12 @@ import java.util.HashMap;
 
 @RunWith(AndroidJUnit4.class)
 public class OpportunisticNetworkServiceTest extends ONSBaseTest {
+    // SetFlagsRule will be used for Telephony feature flag
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+    @Rule
+    public TestRule compatChangeRule = new PlatformCompatChangeRule();
+
     private static final String TAG = "ONSTest";
     private String pkgForDebug;
     private String pkgForFeature;
@@ -76,6 +91,8 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
     private UserManager mUserManager;
     @Mock
     private Context mMockContext;
+    @Mock
+    private PackageManager mPackageManager;
 
     @Before
     public void setUp() throws Exception {
@@ -90,6 +107,7 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
                 mOpportunisticNetworkService = new OpportunisticNetworkService();
                 mOpportunisticNetworkService.initialize(mContext);
                 mOpportunisticNetworkService.mSubscriptionManager = mSubscriptionManager;
+                mOpportunisticNetworkService.mPackageManager = mPackageManager;
                 for (int retry = 2; retry > 0; retry--) {
 
                     iOpportunisticNetworkService = (IOns) mOpportunisticNetworkService.onBind(null);
@@ -110,6 +128,12 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
             }
         }).start();
         waitUntilReady(300);
+
+        // In order not to affect the existing implementation, define a telephony feature
+        when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY_DATA))
+                .thenReturn(true);
+        when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY_RADIO_ACCESS))
+                .thenReturn(true);
     }
 
     @After
@@ -413,6 +437,57 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
         when(mUserManager.isUserUnlocked()).thenReturn(true);
         CarrierConfigChangeListener.onCarrierConfigChanged(0, 0, 0, 0);
         verify(mONSProfileActivator, times(2)).handleCarrierConfigChange();
+    }
+
+    @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
+    public void testTelephonyFeatureAndCompatChanges() {
+        mSetFlagsRule.enableFlags(Flags.FLAG_ENFORCE_TELEPHONY_FEATURE_MAPPING_FOR_PUBLIC_APIS);
+
+        ArrayList<String> mccMncs = new ArrayList<>();
+        mccMncs.add("310210");
+        AvailableNetworkInfo availableNetworkInfo = new AvailableNetworkInfo(1, 1, mccMncs,
+                new ArrayList<Integer>());
+        ArrayList<AvailableNetworkInfo> availableNetworkInfos = new ArrayList<>();
+        availableNetworkInfos.add(availableNetworkInfo);
+
+        // Enabled FeatureFlags and ENABLE_FEATURE_MAPPING, telephony features are defined
+        try {
+            // FEATURE_TELEPHONY_DATA
+            iOpportunisticNetworkService.setPreferredDataSubscriptionId(
+                    SubscriptionManager.DEFAULT_SUBSCRIPTION_ID, false, null, pkgForDebug);
+            iOpportunisticNetworkService.getPreferredDataSubscriptionId(pkgForDebug, pkgForFeature);
+
+            // FEATURE_TELEPHONY_RADIO_ACCESS
+            iOpportunisticNetworkService.setEnable(false, pkgForDebug);
+            iOpportunisticNetworkService.isEnabled(pkgForDebug);
+            iOpportunisticNetworkService.updateAvailableNetworks(availableNetworkInfos, null,
+                    pkgForDebug);
+        } catch (Exception e) {
+            fail("Not expect exception " + e.getMessage());
+        }
+
+        // FEATURE_TELEPHONY_DATA is not defined, expect UnsupportedOperationException.
+        when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY_DATA))
+                .thenReturn(false);
+
+        assertThrows(UnsupportedOperationException.class,
+                () -> iOpportunisticNetworkService.setPreferredDataSubscriptionId(
+                        SubscriptionManager.DEFAULT_SUBSCRIPTION_ID, false, null, pkgForDebug));
+        assertThrows(UnsupportedOperationException.class,
+                () -> iOpportunisticNetworkService.getPreferredDataSubscriptionId(
+                        pkgForDebug, pkgForFeature));
+
+        // FEATURE_TELEPHONY_DATA is not defined, expect UnsupportedOperationException.
+        when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY_RADIO_ACCESS))
+                .thenReturn(false);
+        assertThrows(UnsupportedOperationException.class,
+                () -> iOpportunisticNetworkService.setEnable(false, pkgForDebug));
+        assertThrows(UnsupportedOperationException.class,
+                () -> iOpportunisticNetworkService.isEnabled(pkgForDebug));
+        assertThrows(UnsupportedOperationException.class,
+                () -> iOpportunisticNetworkService.updateAvailableNetworks(
+                        availableNetworkInfos, null, pkgForDebug));
     }
 
     private IOns getIOns() {
