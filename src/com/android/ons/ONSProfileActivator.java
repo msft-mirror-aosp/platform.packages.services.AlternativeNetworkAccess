@@ -35,6 +35,7 @@ import android.telephony.euicc.EuiccManager;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.telephony.flags.Flags;
 import com.android.ons.ONSProfileDownloader.DownloadRetryResultCode;
 
 import java.util.ArrayList;
@@ -67,7 +68,11 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
 
     public ONSProfileActivator(Context context, ONSStats onsStats) {
         mContext = context;
-        mSubManager = mContext.getSystemService(SubscriptionManager.class);
+        SubscriptionManager sm = mContext.getSystemService(SubscriptionManager.class);
+        if (Flags.workProfileApiSplit()) {
+            sm = sm.createForAllUserProfiles();
+        }
+        mSubManager = sm;
         mTelephonyManager = mContext.getSystemService(TelephonyManager.class);
         mCarrierConfigMgr = mContext.getSystemService(CarrierConfigManager.class);
         mEuiccManager = mContext.getSystemService(EuiccManager.class);
@@ -173,12 +178,13 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
 
         //Check the number of active subscriptions.
         List<SubscriptionInfo> activeSubInfos = mSubManager.getActiveSubscriptionInfoList();
+        if (activeSubInfos == null || activeSubInfos.size() <= 0) {
+            return Result.ERR_NO_SIM_INSERTED;
+        }
         int activeSubCount = activeSubInfos.size();
         Log.d(TAG, "Active subscription count:" + activeSubCount);
 
-        if (activeSubCount <= 0) {
-            return Result.ERR_NO_SIM_INSERTED;
-        } else if (activeSubCount == 1) {
+        if (activeSubCount == 1) {
             SubscriptionInfo pSubInfo = activeSubInfos.get(0);
             if (pSubInfo.isOpportunistic()) {
                 //Only one SIM is active and its opportunistic SIM.

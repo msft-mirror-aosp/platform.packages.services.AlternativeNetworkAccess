@@ -133,7 +133,12 @@ public class ONSProfileConfigurator {
             Log.d(TAG, "Grouping opportunistc eSIM and CBRS pSIM");
             ArrayList<Integer> subList = new ArrayList<>();
             subList.add(opportunisticESIM.getSubscriptionId());
-            mSubscriptionManager.addSubscriptionsIntoGroup(subList, groupUuid);
+            try {
+                mSubscriptionManager.addSubscriptionsIntoGroup(subList, groupUuid);
+            } catch (RuntimeException re) {
+                // Telephony not found
+                Log.e(TAG, "Subscription group add failed.", re);
+            }
         }
 
         if (!opportunisticESIM.isOpportunistic()) {
@@ -156,7 +161,7 @@ public class ONSProfileConfigurator {
         PendingIntent callbackIntent = PendingIntent.getBroadcast(mContext,
                 REQUEST_CODE_ACTIVATE_SUB, intent, PendingIntent.FLAG_IMMUTABLE);
         Log.d(TAG, "Activate oppSub request sent to SubManager");
-        mSubscriptionManager.switchToSubscription(subId, callbackIntent);
+        mEuiccManager.switchToSubscription(subId, callbackIntent);
     }
 
     /**
@@ -245,7 +250,14 @@ public class ONSProfileConfigurator {
         Log.d(TAG, "Creating Group for Primary SIM");
         List<Integer> pSubList = new ArrayList<>();
         pSubList.add(primaryCBRSSubInfo.getSubscriptionId());
-        return mSubscriptionManager.createSubscriptionGroup(pSubList);
+        ParcelUuid puid = null;
+        try {
+            puid = mSubscriptionManager.createSubscriptionGroup(pSubList);
+        } catch (RuntimeException re) {
+            // Telephony not found
+            Log.e(TAG, "Subscription group creation failed.", re);
+        }
+        return puid;
     }
 
     /**
@@ -258,6 +270,10 @@ public class ONSProfileConfigurator {
         //Get the list of active subscriptions
         List<SubscriptionInfo> availSubInfoList = mSubscriptionManager
                 .getAvailableSubscriptionInfoList();
+        if (availSubInfoList == null) {
+            Log.e(TAG, "getAvailableSubscriptionInfoList returned null");
+            return null;
+        }
         Log.d(TAG, "Available subscriptions: " + availSubInfoList.size());
 
         //Get the list of opportunistic carrier-ids list from carrier config.
@@ -269,8 +285,12 @@ public class ONSProfileConfigurator {
             return null;
         }
 
-        ParcelUuid pSIMSubGroupId = mSubscriptionManager.getActiveSubscriptionInfo(pSIMId)
-                .getGroupUuid();
+        SubscriptionInfo subscriptionInfo = mSubscriptionManager.getActiveSubscriptionInfo(pSIMId);
+        if (subscriptionInfo == null) {
+            Log.e(TAG, "getActiveSubscriptionInfo returned null for: " + pSIMId);
+            return null;
+        }
+        ParcelUuid pSIMSubGroupId = subscriptionInfo.getGroupUuid();
         for (SubscriptionInfo subInfo : availSubInfoList) {
             if (subInfo.getSubscriptionId() != pSIMId) {
                 for (int carrId : oppCarrierIdArr) {
