@@ -28,6 +28,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Looper;
 import android.os.RemoteException;
 import android.os.UserManager;
@@ -58,6 +59,7 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -128,9 +130,6 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
             }
         }).start();
         waitUntilReady(300);
-
-        // This is used for com.android.internal.telephony.flags.Flags
-        mSetFlagsRule.initAllFlagsToReleaseConfigDefault();
 
         // In order not to affect the existing implementation, define a telephony feature
         when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY_DATA))
@@ -444,7 +443,7 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
 
     @Test
     @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
-    public void testTelephonyFeatureAndCompatChanges() {
+    public void testTelephonyFeatureAndCompatChanges() throws Exception {
         mSetFlagsRule.enableFlags(Flags.FLAG_ENFORCE_TELEPHONY_FEATURE_MAPPING_FOR_PUBLIC_APIS);
 
         ArrayList<String> mccMncs = new ArrayList<>();
@@ -470,6 +469,11 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
             fail("Not expect exception " + e.getMessage());
         }
 
+        // Replace field to set SDK version of vendor partition to Android V
+        int vendorApiLevel = Build.VERSION_CODES.VANILLA_ICE_CREAM;
+        replaceInstance(OpportunisticNetworkService.class, "mVendorApiLevel",
+                mOpportunisticNetworkService, vendorApiLevel);
+
         // FEATURE_TELEPHONY_DATA is not defined, expect UnsupportedOperationException.
         when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY_DATA))
                 .thenReturn(false);
@@ -491,6 +495,13 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
         assertThrows(UnsupportedOperationException.class,
                 () -> iOpportunisticNetworkService.updateAvailableNetworks(
                         availableNetworkInfos, null, pkgForDebug));
+    }
+
+    private void replaceInstance(final Class c, final String instanceName, final Object obj,
+            final Object newValue) throws Exception {
+        Field field = c.getDeclaredField(instanceName);
+        field.setAccessible(true);
+        field.set(obj, newValue);
     }
 
     private IOns getIOns() {
