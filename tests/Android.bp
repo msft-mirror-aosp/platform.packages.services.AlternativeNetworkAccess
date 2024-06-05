@@ -13,6 +13,7 @@
 // limitations under the License.
 
 package {
+    default_team: "trendy_team_pmw_telephony",
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
@@ -29,6 +30,9 @@ android_test {
         "androidx.test.rules",
         "mockito-target",
         "platform-test-annotations",
+        "flag-junit",
+        "platform-compat-test-rules",
+        "telephony_flags_core_java_lib",
     ],
     platform_apis: true,
     certificate: "platform",

@@ -31,10 +31,12 @@ import android.telephony.CarrierConfigManager;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
+import android.telephony.UiccCardInfo;
 import android.telephony.euicc.EuiccManager;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.telephony.flags.Flags;
 import com.android.ons.ONSProfileDownloader.DownloadRetryResultCode;
 
 import java.util.ArrayList;
@@ -67,14 +69,18 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
 
     public ONSProfileActivator(Context context, ONSStats onsStats) {
         mContext = context;
-        mSubManager = mContext.getSystemService(SubscriptionManager.class);
+        SubscriptionManager sm = mContext.getSystemService(SubscriptionManager.class);
+        if (Flags.workProfileApiSplit()) {
+            sm = sm.createForAllUserProfiles();
+        }
+        mSubManager = sm;
         mTelephonyManager = mContext.getSystemService(TelephonyManager.class);
         mCarrierConfigMgr = mContext.getSystemService(CarrierConfigManager.class);
         mEuiccManager = mContext.getSystemService(EuiccManager.class);
         mONSProfileConfig = new ONSProfileConfigurator(mContext, mSubManager,
                 mCarrierConfigMgr, mEuiccManager, this);
         mONSProfileDownloader = new ONSProfileDownloader(mContext, mCarrierConfigMgr,
-                mEuiccManager, mONSProfileConfig, this);
+                mEuiccManager, mSubManager, mONSProfileConfig, this);
 
         //Monitor internet connection.
         mConnectivityManager = context.getSystemService(ConnectivityManager.class);
@@ -475,7 +481,19 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
      * Checks if device supports eSIM.
      */
     private boolean isESIMSupported() {
-        return (mEuiccManager != null && mEuiccManager.isEnabled());
+        for (UiccCardInfo uiccCardInfo : mTelephonyManager.getUiccCardsInfo()) {
+            if (uiccCardInfo != null && !uiccCardInfo.isEuicc()) {
+                // Skip this card.
+                continue;
+            }
+
+            EuiccManager euiccManager = mEuiccManager.createForCardId(uiccCardInfo.getCardId());
+            if (euiccManager.isEnabled()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
