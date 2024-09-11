@@ -883,7 +883,10 @@ public class ONSProfileSelector {
     }
 
     public int getPreferredDataSubscriptionId() {
-        return mSubscriptionManager.getPreferredDataSubscriptionId();
+        final int preferredDataSubId = mSubscriptionManager.getPreferredDataSubscriptionId();
+        return isOpportunisticSub(preferredDataSubId)
+            ? preferredDataSubId
+            : SubscriptionManager.DEFAULT_SUBSCRIPTION_ID;
     }
 
     /**
